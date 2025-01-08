@@ -1,10 +1,30 @@
 import {
-  Form,
   Links,
   Meta,
+  Outlet,
   Scripts,
   ScrollRestoration,
 } from "@remix-run/react";
+import type { LinksFunction } from "@remix-run/node";
+
+import rootStylesUrl from "~/styles/root.css?url";
+
+import { links as tabsLinks } from "~/components/tabs";
+import { links as sidebarLinks } from "~/components/sidebar";
+import { links as categoryFiltersLinks } from "~/components/category-filters";
+import { links as ingredientListLinks } from "~/components/ingredient-list";
+import { links as recipeListLinks } from "~/components/recipe-list";
+import { links as recipeAddLinks } from "~/routes/_.recipe.add";
+
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: rootStylesUrl },
+  ...sidebarLinks(),
+  ...tabsLinks(),
+  ...categoryFiltersLinks(),
+  ...ingredientListLinks(),
+  ...recipeListLinks(),
+  ...recipeAddLinks(),
+];
 
 export default function App() {
   return (
@@ -16,35 +36,7 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <div id="sidebar">
-          <h1>Remix Contacts</h1>
-          <div>
-            <Form id="search-form" role="search">
-              <input
-                id="q"
-                aria-label="Search contacts"
-                placeholder="Search"
-                type="search"
-                name="q"
-              />
-              <div id="search-spinner" aria-hidden hidden={true} />
-            </Form>
-            <Form method="post">
-              <button type="submit">New</button>
-            </Form>
-          </div>
-          <nav>
-            <ul>
-              <li>
-                <a href={`/contacts/1`}>Your Name</a>
-              </li>
-              <li>
-                <a href={`/contacts/2`}>Your Friend</a>
-              </li>
-            </ul>
-          </nav>
-        </div>
-
+        <Outlet />
         <ScrollRestoration />
         <Scripts />
       </body>

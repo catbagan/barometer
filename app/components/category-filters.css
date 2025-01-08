@@ -1,0 +1,58 @@
+.controls {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e3e3e3;
+}
+
+.category-pill {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 2px solid currentColor;
+  cursor: pointer;
+  transition: all 0.5s ease;
+  font-weight: bold;
+  text-transform: capitalize;
+  background-color: transparent;
+  opacity: 0.6;
+  margin: 2px 1px;
+}
+
+.category-pill.category-brandy {
+  color: #7d2f00;
+}
+.category-pill.category-vodka {
+  color: #4a4a4a;
+}
+.category-pill.category-gin {
+  color: #008b45;
+}
+.category-pill.category-rum {
+  color: #ff4500;
+}
+.category-pill.category-tequila {
+  color: #9932cc;
+}
+.category-pill.category-whiskey {
+  color: #1e90ff;
+}
+.category-pill.category-cordials {
+  color: #ff1493;
+}
+.category-pill.category-cocktails {
+  color: #32cd32;
+}
+
+.category-pill.inactive {
+  opacity: 0.1;
+}
+
+.category-pill:hover {
+  opacity: 0.5;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.category-pill.active {
+  opacity: 1;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}

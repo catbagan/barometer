@@ -1,0 +1,114 @@
+nav {
+  flex: 1;
+  overflow: auto;
+  padding-top: 1rem;
+}
+
+ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.ingredient-item {
+  padding: 1rem;
+  margin: 0.5rem;
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  opacity: 0.5;
+  transition: all 0.5s ease;
+  border: 1px solid transparent;
+}
+
+.ingredient-item:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.ingredient-item.active {
+  opacity: 1;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  transform: scale(1.05);
+}
+
+.price-info {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.regular-price {
+  font-size: 1rem;
+  color: #666;
+}
+
+.sale-price {
+  font-size: 1.1rem;
+  color: #e53e3e;
+  font-weight: bold;
+}
+
+.savings {
+  font-size: 0.9rem;
+  color: #2f855a;
+  font-weight: 500;
+}
+
+.on-sale {
+  background: #fff5f5;
+}
+
+.on-sale .regular-price {
+  text-decoration: line-through;
+  font-size: 0.9rem;
+}
+
+
+.ingredient-item .sale-price {
+  color: #d32f2f;
+  font-weight: bold;
+}
+
+.ingredient-item .savings {
+  background-color: #d32f2f;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8em;
+}
+
+.ingredient-item.on-sale .regular-price {
+  text-decoration: line-through;
+  color: #888;
+}
+
+.ingredient-item .details {
+  margin-top: 10px;
+  color: #666;
+}
+
+.ingredient-item-brandy {
+  border-left: 8px solid #7d2f00;
+}
+.ingredient-item-vodka {
+  border-left: 8px solid #4a4a4a;
+}
+.ingredient-item-gin {
+  border-left: 8px solid #008b45;
+}
+.ingredient-item-rum {
+  border-left: 8px solid #ff4500;
+}
+.ingredient-item-tequila {
+  border-left: 8px solid #9932cc;
+} 
+.ingredient-item-whiskey {
+  border-left: 8px solid #1e90ff;
+}
+.ingredient-item-cordials {
+  border-left: 8px solid #ff1493;
+} 
+.ingredient-item-cocktails {
+  border-left: 8px solid #32cd32;
+}
