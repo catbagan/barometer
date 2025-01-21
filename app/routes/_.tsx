@@ -2,11 +2,12 @@ import { Outlet, useLoaderData, useNavigate } from "@remix-run/react";
 import type { LoaderFunction } from "@remix-run/node";
 import { connectDB } from "~/db/db.server";
 import { IngredientModel } from "~/db/ingredient.server";
-import type { IngredientResponse } from "~/types/ingredient.type";
+import type { IngredientResponse } from "~/types/index.type";
 import type { LinksFunction } from "@remix-run/node";
 import stylesUrl from "~/styles/_.css?url";
 import { Sidebar } from "~/components/sidebar";
 import { useEffect, useState } from "react";
+import { RecipeModel } from "~/db/recipe.server";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesUrl },
@@ -28,10 +29,17 @@ export const loader: LoaderFunction = async (): Promise<IngredientResponse> => {
         })),
       };
     });
-    return { ingredients };
+    const recipes = (await RecipeModel.find()).map((doc) => {
+      const recipe = doc.toObject();
+      return {
+        id: recipe._id.toHexString(),
+        name: recipe.name,
+      };
+    });
+    return { ingredients, recipes };
   } catch (error) {
     console.error("Error:", error);
-    return { ingredients: [] };
+    return { ingredients: [], recipes: [] };
   }
 };
 
@@ -50,7 +58,7 @@ export default function AppLayout() {
     <>
       <Sidebar
         ingredients={data.ingredients}
-        recipes={[]}
+        recipes={data.recipes}
         setSelectedIngredient={setSelectedIngredient}
         selectedIngredient={selectedIngredient}
       />

@@ -6,9 +6,9 @@
 
 .basic-info {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
+  flex-direction: row;
+  gap: 32px;
+  justify-items: center;
 }
 
 .form-group {
@@ -69,7 +69,7 @@
 }
 
 .add-button,
-.calculate-button {
+.save-button {
   padding: 8px 16px;
   border-radius: 4px;
   border: none;
@@ -86,13 +86,13 @@
   background-color: #187bdb;
 }
 
-.calculate-button {
+.save-button {
   background-color: #32cd32;
   width: 100%;
   margin-top: 24px;
 }
 
-.calculate-button:hover {
+.save-button:hover {
   background-color: #2bb52b;
 }
 

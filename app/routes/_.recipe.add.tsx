@@ -1,220 +1,94 @@
 import { useOutletContext, useActionData } from "@remix-run/react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, ContextType } from "react";
 import { Form } from "@remix-run/react";
 import { ActionFunction, json, LinksFunction } from "@remix-run/node";
 import { connectDB } from "~/db/db.server";
-import { IngredientModel } from "~/db/ingredient.server";
 
 import stylesUrl from "./../styles/_.recipe.add.css?url";
+import mongoose from "mongoose";
+import { RecipeModel } from "~/db/recipe.server";
+import { IngredientModel } from "~/db/ingredient.server";
+import {
+  BrandCost,
+  Ingredient,
+  IngredientCost,
+  RecipeCost,
+  RecipeIngredient,
+} from "~/types/index.type";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesUrl },
 ];
 
-interface Size {
-  code: string;
-  size: string;
-  regularPrice: number;
-  salePrice: number;
-  savings: number;
-  proof: number;
-  lastUpdated: string;
-}
-
-interface RecipeIngredient {
-  category: string;
-  amount: string;
-  brands: string[];
-}
-
-type ContextType = {
-  ingredients: Array<{
-    id: string;
-    brand: string;
-    category: string;
-    lastUpdated: string;
-    sizes: Size[];
-  }>;
-};
-
-interface BrandCost {
-  brandId: string;
-  brandName: string;
-  sizeUsed: string;
-  pricePerOz: number;
-  totalCost: number;
-  unitPrice: number;
-}
-
-interface IngredientCost {
-  category: string;
-  amount: string;
-  brandOptions: BrandCost[];
-}
-
-interface RecipeCost {
-  totalCost: number;
-  menuPrice: number;
-  profit: number;
-  profitMargin: number; // as percentage
-  breakdown: Array<{
-    brandName: string;
-    cost: number;
-    sizeUsed: string;
-    unitPrice: number;
-  }>;
-}
-
 export const action: ActionFunction = async ({ request }) => {
-  const formData = await request.formData();
-  const data = Object.fromEntries(formData);
-  const recipeIngredients = JSON.parse(
-    data["ingredients"].toString()
-  ) as Array<RecipeIngredient>;
+  try {
+    const formData = await request.formData();
+    const data = Object.fromEntries(formData);
 
-  await connectDB();
+    // Parse and validate form data
+    const recipeName = data.recipeName?.toString();
+    const menuPrice = parseFloat(data.menuPrice?.toString() || "0");
+    const notes = data.notes?.toString() || "";
+    const recipeIngredients = JSON.parse(
+      data.ingredients?.toString() || "[]"
+    ) as Array<RecipeIngredient>;
 
-  // Get all ingredients from DB with mapping
-  const ingredients = (await IngredientModel.find()).map((doc) => {
-    const ingredient = doc.toObject();
-    return {
-      _id: ingredient._id,
-      brand: ingredient.brand,
-      category: ingredient.category,
-      lastUpdated: ingredient.lastUpdated,
-      sizes: ingredient.sizes.map((s) => ({
-        ...s,
-        lastUpdated: s.lastUpdated.toISOString(),
-      })),
-    };
-  });
-
-  // Calculate costs for each ingredient
-  const ingredientCosts: IngredientCost[] = recipeIngredients.map(
-    (recipeIngredient) => {
-      // Get full ingredient details for each brand
-      const brandIngredients = ingredients.filter((ing) =>
-        recipeIngredient.brands.includes(ing._id.toString())
+    // Validation
+    if (!recipeName || !menuPrice || !recipeIngredients.length) {
+      return json(
+        {
+          success: false,
+          error: "Missing required fields",
+        },
+        { status: 400 }
       );
-
-      // Calculate costs for each brand
-      const brandCosts: BrandCost[] = brandIngredients.map((ingredient) => {
-        // Convert amount to ounces for calculation
-        const recipeAmount = parseFloat(
-          recipeIngredient.amount.replace("oz", "")
-        );
-
-        // Calculate price per oz for each size and find cheapest
-        const sizeOptions = ingredient.sizes.map((size) => {
-          // Extract numeric value from size (e.g., "750ml" -> 750)
-          const sizeValue = parseFloat(size.size.match(/\d+/)![0]);
-
-          // Convert to ounces if necessary (assuming sizes are in ml)
-          const sizeInOz = sizeValue / 29.5735; // ml to oz conversion
-
-          // Calculate price per oz
-          const pricePerOz = size.salePrice / sizeInOz;
-
-          return {
-            ...size,
-            pricePerOz,
-            totalSize: sizeInOz,
-          };
-        });
-
-        // Find size option with lowest price per oz
-        const cheapestSize = sizeOptions.reduce((prev, curr) =>
-          prev.pricePerOz < curr.pricePerOz ? prev : curr
-        );
-
-        // Calculate total cost for this brand using recipe amount
-        const totalCost = cheapestSize.pricePerOz * recipeAmount;
-
-        return {
-          brandId: ingredient._id.toString(),
-          brandName: ingredient.brand,
-          sizeUsed: cheapestSize.size,
-          pricePerOz: cheapestSize.pricePerOz,
-          totalCost: totalCost,
-          unitPrice: cheapestSize.salePrice,
-        };
-      });
-
-      return {
-        category: recipeIngredient.category,
-        amount: recipeIngredient.amount,
-        brandOptions: brandCosts,
-      };
     }
-  );
 
-  // Generate all possible brand combinations
-  const brandCombinations = ingredientCosts
-    .map((ingredient) => ingredient.brandOptions)
-    .reduce<BrandCost[][]>((acc, curr) => {
-      if (acc.length === 0) return curr.map((item) => [item]);
-      return acc.flatMap((a) => curr.map((b) => [...a, b]));
-    }, []);
+    await connectDB();
 
-  // Calculate total cost for each combination
-  const menuPrice = parseFloat(data.menuPrice as string);
-  const recipeCosts: RecipeCost[] = brandCombinations.map((combination) => {
-    const total = combination.reduce((sum, brand) => sum + brand.totalCost, 0);
-    const profit = menuPrice - total;
-    const profitMargin = (profit / menuPrice) * 100;
-
-    return {
-      totalCost: total,
+    // Save recipe to database
+    const recipe = new RecipeModel({
+      name: recipeName,
       menuPrice,
-      profit,
-      profitMargin,
-      breakdown: combination.map((brand) => ({
-        brandName: brand.brandName,
-        cost: brand.totalCost,
-        sizeUsed: brand.sizeUsed,
-        unitPrice: brand.unitPrice,
+      notes,
+      ingredients: recipeIngredients.map((ing) => ({
+        category: ing.category,
+        amount: ing.amount,
+        brands: ing.brands.map(
+          (brandId) => new mongoose.Types.ObjectId(brandId)
+        ),
       })),
-    };
-  });
+    });
 
-  // Sort by total cost and return
-  return json({
-    success: true,
-    recipeCosts: recipeCosts.sort((a, b) => a.totalCost - b.totalCost),
-    ingredientCosts,
-    fields: {
-      recipeName: data.recipeName as string,
-      menuPrice: data.menuPrice as string,
-      notes: data.notes as string,
-      ingredients: recipeIngredients,
-    },
-  });
+    await recipe.save();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Action error:", error);
+    return json(
+      {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "An unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
 };
 
 export default function RecipeAddRoute() {
-  const { ingredients } = useOutletContext<ContextType>();
+  const { ingredients } = useOutletContext<{
+    ingredients: Array<Ingredient>;
+  }>();
   const actionData = useActionData<{
     success: boolean;
-    recipeCosts: RecipeCost[];
-    ingredientCosts: IngredientCost[];
-    fields: {
-      recipeName: string;
-      menuPrice: string;
-      notes: string;
-      ingredients: RecipeIngredient[];
-    };
   }>();
 
-  const [recipeName, setRecipeName] = useState(
-    actionData?.fields?.recipeName || ""
-  );
-  const [menuPrice, setMenuPrice] = useState(
-    actionData?.fields?.menuPrice || ""
-  );
-  const [notes, setNotes] = useState(actionData?.fields?.notes || "");
+  const [recipeName, setRecipeName] = useState("");
+  const [menuPrice, setMenuPrice] = useState("");
   const [recipeIngredients, setRecipeIngredients] = useState<
-    RecipeIngredient[]
-  >(actionData?.fields?.ingredients || []);
+    Array<RecipeIngredient>
+  >([]);
   const [currentIngredient, setCurrentIngredient] = useState<RecipeIngredient>({
     category: "",
     amount: "1oz",
@@ -423,55 +297,9 @@ export default function RecipeAddRoute() {
         value={JSON.stringify(recipeIngredients)}
       />
 
-      <button type="submit" className="calculate-button">
-        Calculate Recipe Costs
+      <button type="submit" className="save-button">
+        Save Recipe
       </button>
-
-      {actionData?.success && (
-        <div className="cost-analysis">
-          <h3>Recipe Cost Analysis</h3>
-
-          <div className="combinations">
-            <h4>Cost Combinations (Cheapest to Most Expensive)</h4>
-            {actionData.recipeCosts.map((combination, index) => (
-              <div key={index} className="combination-item">
-                <strong className="combination-summary">
-                  Option {index + 1}: ${combination.totalCost.toFixed(2)} cost |
-                  ${combination.profit.toFixed(2)} profit |
-                  {combination.profitMargin.toFixed(1)}% margin
-                </strong>
-                <ul className="breakdown-list">
-                  {combination.breakdown.map((item, i) => (
-                    <li key={i} className="breakdown-item">
-                      {item.brandName}: ${item.cost.toFixed(2)}
-                      (using {item.sizeUsed} @ ${item.unitPrice.toFixed(2)})
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          <div className="ingredient-costs">
-            <h4>Ingredient Details</h4>
-            {actionData.ingredientCosts.map((ingredient, index) => (
-              <div key={index} className="cost-item">
-                <strong className="ingredient-name">
-                  {ingredient.category} ({ingredient.amount})
-                </strong>
-                <ul className="brand-options">
-                  {ingredient.brandOptions.map((brand, i) => (
-                    <li key={i} className="brand-option">
-                      {brand.brandName}: ${brand.totalCost.toFixed(2)}
-                      (${brand.pricePerOz.toFixed(2)}/oz using {brand.sizeUsed})
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </Form>
   );
 }

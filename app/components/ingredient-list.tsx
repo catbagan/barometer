@@ -1,5 +1,5 @@
 import { useNavigate } from "@remix-run/react";
-import type { Ingredient } from "~/types/ingredient.type";
+import type { Ingredient } from "~/types/index.type";
 
 interface IngredientListProps {
   ingredients: Ingredient[];

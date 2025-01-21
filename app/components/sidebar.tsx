@@ -6,7 +6,7 @@ import { RecipeList } from "./recipe-list";
 import { CategoryFilters } from "./category-filters";
 import { useState, useMemo } from "react";
 import { Tabs } from "./tabs";
-import { Ingredient } from "~/types/ingredient.type";
+import { Ingredient } from "~/types/index.type";
 import cocktail from "/cocktail.png";
 
 interface SidebarProps {
@@ -41,6 +41,7 @@ export function Sidebar({
     );
   }, [ingredients, selectedCategories]);
 
+  const [selectedRecipeId, setSelectedRecipeId] = useState("");
   return (
     <div id="sidebar">
       <div id="sidebar-header">
@@ -75,9 +76,21 @@ export function Sidebar({
       {activeTab === "recipes" && (
         <>
           <div id="recipe-controls">
-            <button id="add-recipe-button" onClick={() => navigate('/recipe/add')}>Add recipe</button>
+            <button
+              id="add-recipe-button"
+              onClick={() => {
+                setSelectedRecipeId("");
+                navigate("/recipe/add");
+              }}
+            >
+              Add recipe
+            </button>
           </div>
-          <RecipeList recipes={recipes} />
+          <RecipeList
+            recipes={recipes}
+            setSelectedRecipeId={setSelectedRecipeId}
+            selectedRecipeId={selectedRecipeId}
+          />
         </>
       )}
       {/* {activeTab === "menus" && <MenuList />} */}

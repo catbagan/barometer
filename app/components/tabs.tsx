@@ -30,19 +30,16 @@ export function Tabs({ activeTab, setActiveTab }: TabsProps) {
         className={`tab recipes-tab ${activeTab === "recipes" ? "active" : ""}`}
         onClick={() => {
           setActiveTab("recipes");
-          navigate(`/recipe/1`);
         }}
       >
         Recipes
       </button>
-      {/*}
       <button
         className={`tab menus-tab ${activeTab === "menus" ? "active" : ""}`}
         onClick={() => setActiveTab("menus")}
       >
         Menus
       </button>
-      */}
     </div>
   );
 }

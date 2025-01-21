@@ -34,21 +34,37 @@ const sizeSchema = new mongoose.Schema({
   },
 });
 
-const ingredientSchema = new mongoose.Schema({
-  brand: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  category: {
-    type: String,
-    required: true,
-  },
-  sizes: [sizeSchema],
-  lastUpdated: {
-    type: Date,
-    default: Date.now,
-  },
-});
+export const IngredientModel =
+  mongoose.models.Ingredient ||
+  mongoose.model(
+    "Ingredient",
+    new mongoose.Schema({
+      brand: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      category: {
+        type: String,
+        required: true,
+      },
+      sizes: [sizeSchema],
+      lastUpdated: {
+        type: Date,
+        default: Date.now,
+      },
+    })
+  );
 
-export const IngredientModel = mongoose.model("Ingredient", ingredientSchema);
+export const fromIngredientModel = (ingredient: any) => {
+  return {
+    id: ingredient._id,
+    brand: ingredient.brand,
+    category: ingredient.category,
+    lastUpdated: ingredient.lastUpdated.toISOString(),
+    sizes: ingredient.sizes.map((s: any) => ({
+      ...s,
+      lastUpdated: s.lastUpdated.toISOString(),
+    })),
+  };
+};
