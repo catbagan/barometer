@@ -28,7 +28,6 @@ export const RecipeModel =
 export const fromRecipeIngredientModel = (
   ingredient: any
 ): RecipeIngredient => {
-  console.log("fromRIM", ingredient);
   return {
     category: ingredient.category,
     amount: ingredient.amount,
@@ -37,7 +36,6 @@ export const fromRecipeIngredientModel = (
 };
 
 export const fromRecipeModel = (recipe: any): Recipe => {
-  console.log("fromRM");
   return {
     id: recipe._id.toHexString(),
     name: recipe.name,

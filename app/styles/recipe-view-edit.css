@@ -1,0 +1,217 @@
+.recipe-form {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.basic-info {
+  display: flex;
+  flex-direction: row;
+  gap: 32px;
+  justify-items: center;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #e3e3e3;
+  border-radius: 4px;
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e3e3e3;
+  align-items: start;
+}
+
+.category-selector {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 2px solid currentColor;
+  cursor: pointer;
+  transition: all 0.5s ease;
+  font-weight: bold;
+  text-transform: capitalize;
+  background-color: transparent;
+  opacity: 0.6;
+  margin: 2px 1px;
+}
+
+.amount-select,
+.brand-select,
+.custom-amount {
+  padding: 8px;
+  border: 1px solid #e3e3e3;
+  border-radius: 4px;
+}
+
+.brand-select {
+  min-height: 100px;
+  min-width: 200px;
+}
+
+.edit-button,
+.save-button,
+.cancel-button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.edit-button {
+  background-color: #1e90ff;
+}
+
+.edit-button:hover {
+  background-color: #187bdb;
+}
+
+.save-button {
+  background-color: #32cd32;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.save-button:hover {
+  background-color: #2bb52b;
+}
+
+.cancel-button {
+  background-color: #aa5555;
+}
+
+.cancel-button:hover {
+  background-color: #992222;
+}
+
+.ingredient-list {
+  margin-top: 24px;
+}
+
+.ingredient-list .ingredient-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.remove-button {
+  background: none;
+  border: none;
+  color: #ff4444;
+  cursor: pointer;
+}
+
+.remove-button:hover {
+  color: #cc0000;
+}
+
+.cost-analysis {
+  margin-top: 32px;
+}
+
+.combination-item {
+  border: 1px solid #e3e3e3;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.breakdown-list {
+  margin-top: 8px;
+  padding-left: 16px;
+}
+
+.breakdown-item {
+  margin-bottom: 4px;
+  color: #666;
+}
+
+.ingredient-costs {
+  margin-top: 24px;
+}
+
+.cost-item {
+  border: 1px solid #e3e3e3;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.brand-options {
+  margin-top: 8px;
+  padding-left: 16px;
+}
+
+.brand-option {
+  margin-bottom: 4px;
+  color: #666;
+}
+
+/* Category-specific colors from your original CSS */
+.category-brandy {
+  color: #7d2f00;
+}
+
+.category-vodka {
+  color: #4a4a4a;
+}
+
+.category-gin {
+  color: #008b45;
+}
+
+.category-rum {
+  color: #ff4500;
+}
+
+.category-tequila {
+  color: #9932cc;
+}
+
+.category-whiskey {
+  color: #1e90ff;
+}
+
+.category-cordials {
+  color: #ff1493;
+}
+
+.category-cocktails {
+  color: #32cd32;
+}
+
+.category-selector.inactive {
+  opacity: 0.1;
+}
+
+.category-selector:hover {
+  opacity: 0.5;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.category-selector.active {
+  opacity: 1;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}

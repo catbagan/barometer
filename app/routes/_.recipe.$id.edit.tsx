@@ -1,107 +1,89 @@
-import { useOutletContext, useActionData } from "@remix-run/react";
-import { useState, useMemo, ContextType } from "react";
-import { Form } from "@remix-run/react";
-import { ActionFunction, json, LinksFunction } from "@remix-run/node";
+import { ActionFunction, LoaderFunction } from "@remix-run/node";
 import { connectDB } from "~/db/db.server";
-
-import stylesUrl from "./../styles/_.recipe.add.css?url";
-import mongoose from "mongoose";
 import { RecipeModel } from "~/db/recipe.server";
-import { IngredientModel } from "~/db/ingredient.server";
-import {
-  BrandCost,
-  Ingredient,
-  IngredientCost,
-  RecipeCost,
-  RecipeIngredient,
-} from "~/types/index.type";
+import mongoose from "mongoose";
+import { Ingredient, Recipe, RecipeIngredient } from "~/types/index.type";
+import { useState, useEffect, useMemo } from "react";
+import { Form } from "@remix-run/react";
+import stylesUrl from "./../styles/recipe-view-edit.css?url";
+import { LinksFunction } from "@remix-run/node";
 
-export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: stylesUrl },
-];
-
-export const action: ActionFunction = async ({ request }) => {
+export const action: ActionFunction = async ({ request, params }) => {
+  console.log('here 1')
   try {
     const formData = await request.formData();
     const data = Object.fromEntries(formData);
+  console.log('here 2')
 
-    // Parse and validate form data
     const recipeName = data.recipeName?.toString();
-    // const menuPrice = parseFloat(data.menuPrice?.toString() || "0");
+    const menuPrice = parseFloat(data.menuPrice?.toString() || "0");
     const notes = data.notes?.toString() || "";
     const recipeIngredients = JSON.parse(
       data.ingredients?.toString() || "[]"
     ) as Array<RecipeIngredient>;
 
-    // Validation
-    if (!recipeName  || !recipeIngredients.length) {
-      return json(
-        {
-          success: false,
-          error: "Missing required fields",
-        },
-        { status: 400 }
-      );
+    if (!recipeName || !recipeIngredients.length || !params.id) {
+      return { success: false };
     }
+  console.log('here 3')
 
     await connectDB();
 
-    // Save recipe to database
-    const recipe = new RecipeModel({
-      name: recipeName,
-      menuPrice: 1,
-      notes,
-      ingredients: recipeIngredients.map((ing) => ({
-        category: ing.category,
-        amount: ing.amount,
-        brands: ing.brands.map(
-          (brandId) => new mongoose.Types.ObjectId(brandId)
-        ),
-      })),
-    });
+    console.log('recipe name: ', recipeName)
+    const updatedRecipe = await RecipeModel.findByIdAndUpdate(
+      params.id,
+      {
+        name: recipeName,
+        menuPrice,
+        notes,
+        ingredients: recipeIngredients.map((ing) => ({
+          category: ing.category,
+          amount: ing.amount,
+          brands: ing.brands.map(
+            (brandId) => new mongoose.Types.ObjectId(brandId)
+          ),
+        })),
+      },
+      { new: true }
+    );
+    console.log('updated: ', JSON.stringify(updatedRecipe))
 
-    await recipe.save();
+    if (!updatedRecipe) {
+      return { success: false, error: "Recipe not found" };
+    }
 
-    return { success: true };
+    return { success: true, recipe: updatedRecipe };
   } catch (error) {
     console.error("Action error:", error);
-    return json(
-      {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "An unknown error occurred",
-      },
-      { status: 500 }
-    );
+    return { success: false };
   }
 };
 
-export default function RecipeAddRoute() {
-  const { ingredients } = useOutletContext<{
-    ingredients: Array<Ingredient>;
-  }>();
-  const actionData = useActionData<{
-    success: boolean;
-  }>();
+export const loader: LoaderFunction = async ({ params }) => {
+  await connectDB();
+  const recipe = await RecipeModel.findById(params.id);
+  if (!recipe) {
+    throw new Response("Recipe not found", { status: 404 });
+  }
+  return { recipe };
+};
 
-  const [recipeName, setRecipeName] = useState("");
-  const [menuPrice, setMenuPrice] = useState("");
-  const [desiredMargin, setDesiredMargin] = useState("");
-  const [recipeIngredients, setRecipeIngredients] = useState<
-    Array<RecipeIngredient>
-  >([]);
-  const [currentIngredient, setCurrentIngredient] = useState<RecipeIngredient>({
-    category: "",
-    amount: "1oz",
-    brands: [],
-  });
+type ViewEditRecipeProps = {
+  recipe: Recipe;
+  ingredients: Ingredient[];
+};
+
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: stylesUrl },
+];
+
+const ViewEditRecipe = ({ recipe, ingredients }: ViewEditRecipeProps) => {
+  const standardAmounts = ["0.5oz", "1oz", "1.5oz", "2oz", "other"];
 
   const categories = useMemo(
     () => [...new Set(ingredients.map((i) => i.category.toLowerCase()))],
     [ingredients]
   );
-
-  const standardAmounts = ["0.5oz", "1oz", "1.5oz", "2oz", "other"];
 
   const brandsByCategory = useMemo(() => {
     const brands: Record<string, Array<{ id: string; name: string }>> = {};
@@ -116,14 +98,29 @@ export default function RecipeAddRoute() {
     return brands;
   }, [categories, ingredients]);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [recipeName, setRecipeName] = useState(recipe.name);
+  const [recipeIngredients, setRecipeIngredients] = useState(
+    recipe.ingredients
+  );
+  const [currentIngredient, setCurrentIngredient] = useState({
+    category: "brandy",
+    amount: "0.5oz",
+    brands: brandsByCategory["brandy"].map((b) => b.name),
+  });
+
+  useEffect(() => {
+    // Reset form state when switching between view/edit modes
+    if (!isEditing) {
+      setRecipeName(recipe.name);
+      setRecipeIngredients(recipe.ingredients);
+    }
+  }, [isEditing, recipe]);
+
   const addIngredient = () => {
     if (currentIngredient.category && currentIngredient.amount) {
       setRecipeIngredients([...recipeIngredients, { ...currentIngredient }]);
-      setCurrentIngredient({
-        category: "",
-        amount: "1oz",
-        brands: [],
-      });
+      setCurrentIngredient({ category: "", amount: "", brands: [] });
     }
   };
 
@@ -131,10 +128,59 @@ export default function RecipeAddRoute() {
     setRecipeIngredients(recipeIngredients.filter((_, i) => i !== index));
   };
 
+  if (!isEditing) {
+    return (
+      <div className="recipe-view">
+        <div className="recipe-header">
+          <h1>{recipe.name}</h1>
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="edit-button"
+          >
+            Edit Recipe
+          </button>
+        </div>
+
+        <div className="ingredient-list">
+          <h3>Ingredients</h3>
+          {recipeIngredients.map((ingredient, index) => (
+            <div
+              key={index}
+              className={`ingredient-item category-${ingredient.category}`}
+            >
+              <span className="ingredient-details">
+                {ingredient.category} - {ingredient.amount}
+                {ingredient.brands.length > 0 && (
+                  <span className="brand-list">
+                    (
+                    {ingredient.brands
+                      .map(
+                        (brandId) =>
+                          brandsByCategory[ingredient.category]?.find(
+                            (b) => b.id === brandId
+                          )?.name
+                      )
+                      .filter(Boolean)
+                      .join(", ")}
+                    )
+                  </span>
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
-    <h1>Add a recipe</h1>
-    <Form method="post" className="recipe-form">
+    <Form
+    action="edit"
+      // action={`/recipe/${recipe.id}/edit`}
+      method="post"
+      className="recipe-form"
+    >
       <div className="basic-info">
         <div className="form-group">
           <label>
@@ -190,20 +236,20 @@ export default function RecipeAddRoute() {
             ))}
           </select>
 
-          {currentIngredient.amount === "other" && (
+          {/*currentIngredient.amount === "other" && (
             <input
               type="text"
-              value={currentIngredient.amount}
+              value={currentIngredient.customAmount}
               onChange={(e) =>
                 setCurrentIngredient({
                   ...currentIngredient,
-                  amount: e.target.value,
+                  customAmount: e.target.value,
                 })
               }
               placeholder="Enter custom amount"
               className="custom-amount"
             />
-          )}
+          )*/}
 
           <select
             multiple
@@ -237,7 +283,7 @@ export default function RecipeAddRoute() {
           {recipeIngredients.map((ingredient, index) => (
             <div
               key={index}
-              className={`ingredient-item category-selector category-${ingredient.category}`}
+              className={`ingredient-item category-${ingredient.category}`}
             >
               <span className="ingredient-details">
                 {ingredient.category} - {ingredient.amount}
@@ -275,10 +321,20 @@ export default function RecipeAddRoute() {
         value={JSON.stringify(recipeIngredients)}
       />
 
-      <button type="submit" className="save-button">
-        Save Recipe
-      </button>
+      <div className="form-actions">
+        <button type="submit" className="save-button">
+          Save Changes
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsEditing(false)}
+          className="cancel-button"
+        >
+          Cancel
+        </button>
+      </div>
     </Form>
-    </>
   );
-}
+};
+
+export default ViewEditRecipe;

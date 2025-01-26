@@ -1,7 +1,6 @@
 import { LoaderFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { useLoaderData, useParams } from "@remix-run/react";
+import { useLoaderData, useOutletContext, useParams } from "@remix-run/react";
 import mongoose from "mongoose";
-import { RecipeTools } from "~/components/recipe-tools";
 import { connectDB } from "~/db/db.server";
 import { fromIngredientModel, IngredientModel } from "~/db/ingredient.server";
 import {
@@ -10,6 +9,7 @@ import {
   RecipeModel,
 } from "~/db/recipe.server";
 import { Ingredient, Recipe, RecipeIngredient } from "~/types/index.type";
+import ViewEditRecipe from "./_.recipe.$id.edit";
 
 interface LoaderResponse {
   recipe: Recipe;
@@ -36,7 +36,7 @@ export const loader: LoaderFunction = async (
         ),
       },
     }).lean();
-    const ingredients = docs.map(fromIngredientModel)
+    const ingredients = docs.map(fromIngredientModel);
 
     const recipeIngredients = recipe.ingredients.map(fromRecipeIngredientModel);
 
@@ -50,19 +50,25 @@ export const loader: LoaderFunction = async (
     return null;
   }
 };
+
 export default function RecipeRoute() {
   const { id } = useParams();
   const data = useLoaderData() as LoaderResponse;
+  const { ingredients } = useOutletContext<{
+    ingredients: Array<Ingredient>;
+  }>();
 
   return (
     <>
-      <h1>Recipe Details for {data.recipe.name}</h1>
+      <ViewEditRecipe recipe={data.recipe} ingredients={ingredients} />
       <h2>Tools</h2>
+      {/*
       <RecipeTools
         recipe={data.recipe}
         recipeIngredients={data.recipeIngredients}
         ingredients={data.ingredients}
       />
+      */}
     </>
   );
 }

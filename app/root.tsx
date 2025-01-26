@@ -14,6 +14,7 @@ import { links as sidebarLinks } from "~/components/sidebar";
 import { links as categoryFiltersLinks } from "~/components/category-filters";
 import { links as ingredientListLinks } from "~/components/ingredient-list";
 import { links as recipeListLinks } from "~/components/recipe-list";
+import { links as recipeViewEditLinks } from "~/routes/_.recipe.$id.edit";
 import { links as recipeAddLinks } from "~/routes/_.recipe.add";
 
 export const links: LinksFunction = () => [
@@ -23,6 +24,7 @@ export const links: LinksFunction = () => [
   ...categoryFiltersLinks(),
   ...ingredientListLinks(),
   ...recipeListLinks(),
+  ...recipeViewEditLinks(),
   ...recipeAddLinks(),
 ];
 
