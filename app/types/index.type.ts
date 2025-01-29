@@ -1,8 +1,17 @@
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
 export interface Size {
   code: string;
   size: string;
+  sizeInMl: number;
+  sizeInOz: number;
   regularPrice: number;
   salePrice: number;
+  pricePerOz: number;
   savings: number;
   proof: number;
   lastUpdated: string;
@@ -14,17 +23,23 @@ export interface Ingredient {
   category: string;
   lastUpdated: string;
   sizes: Size[];
+  createdBy: string; // User ID
 }
 
 export interface IngredientResponse {
   ingredients: Ingredient[];
-  recipes: any[];
+}
+
+export interface IngredientBrand {
+  id: string;
+  name: string;
 }
 
 export interface RecipeIngredient {
+  id: string;
   category: string;
   amount: string;
-  brands: string[];
+  brands: IngredientBrand[];
 }
 
 export interface BrandCost {
@@ -45,8 +60,10 @@ export interface IngredientCost {
 export interface Recipe {
   id: string;
   name: string;
-  menuPrice: number;
   ingredients: Array<RecipeIngredient>;
+  createdBy: string; // User ID
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface RecipeCost {
@@ -62,11 +79,16 @@ export interface RecipeCost {
   }>;
 }
 
+export interface MenuRecipe {
+  recipe: string; // Recipe ID
+  price: number;
+}
+
 export interface Menu {
   id: string;
   name: string;
-}
-
-export interface User {
-
+  recipes: Array<MenuRecipe>;
+  createdBy: string; // User ID
+  createdAt: string;
+  updatedAt: string;
 }

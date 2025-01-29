@@ -1,5 +1,11 @@
+#app {
+  display: flex;
+}
+
 #detail {
+  margin-left: 200px; 
   flex: 1;
-  padding: 2rem;
-  background: white;
+  overflow-y: auto;
+  min-height: 100vh;
+  width: calc(100% - 200px); 
 }
