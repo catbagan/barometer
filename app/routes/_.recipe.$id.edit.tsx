@@ -9,11 +9,9 @@ import stylesUrl from "./../styles/recipe-view-edit.css?url";
 import { LinksFunction } from "@remix-run/node";
 
 export const action: ActionFunction = async ({ request, params }) => {
-  console.log('here 1')
   try {
     const formData = await request.formData();
     const data = Object.fromEntries(formData);
-  console.log('here 2')
 
     const recipeName = data.recipeName?.toString();
     const menuPrice = parseFloat(data.menuPrice?.toString() || "0");
@@ -25,11 +23,9 @@ export const action: ActionFunction = async ({ request, params }) => {
     if (!recipeName || !recipeIngredients.length || !params.id) {
       return { success: false };
     }
-  console.log('here 3')
 
     await connectDB();
 
-    console.log('recipe name: ', recipeName)
     const updatedRecipe = await RecipeModel.findByIdAndUpdate(
       params.id,
       {
@@ -46,7 +42,6 @@ export const action: ActionFunction = async ({ request, params }) => {
       },
       { new: true }
     );
-    console.log('updated: ', JSON.stringify(updatedRecipe))
 
     if (!updatedRecipe) {
       return { success: false, error: "Recipe not found" };

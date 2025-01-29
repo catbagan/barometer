@@ -1,0 +1,1 @@
+export const DANIEL_USER_ID = '679a4d65e9c70f1ef99892b0'

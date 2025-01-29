@@ -4,41 +4,44 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "@remix-run/react";
-import type { LinksFunction } from "@remix-run/node";
+import "@mantine/core/styles.css";
+import {
+  ColorSchemeScript,
+  MantineProvider,
+  mantineHtmlProps,
+} from "@mantine/core";
+import { LoaderFunction } from "@remix-run/node";
+import { isLoggedIn } from "./services/auth.service";
 
-import rootStylesUrl from "~/styles/root.css?url";
-
-import { links as tabsLinks } from "~/components/tabs";
-import { links as sidebarLinks } from "~/components/sidebar";
-import { links as categoryFiltersLinks } from "~/components/category-filters";
-import { links as ingredientListLinks } from "~/components/ingredient-list";
-import { links as recipeListLinks } from "~/components/recipe-list";
-import { links as recipeViewEditLinks } from "~/routes/_.recipe.$id.edit";
-import { links as recipeAddLinks } from "~/routes/_.recipe.add";
-
-export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: rootStylesUrl },
-  ...sidebarLinks(),
-  ...tabsLinks(),
-  ...categoryFiltersLinks(),
-  ...ingredientListLinks(),
-  ...recipeListLinks(),
-  ...recipeViewEditLinks(),
-  ...recipeAddLinks(),
-];
+export const loader: LoaderFunction = async ({ request }) => {
+  const result = {
+    isLoggedIn: (await isLoggedIn(request)).isLoggedIn,
+  };
+  return result;
+};
 
 export default function App() {
+  const { isLoggedIn } = useLoaderData() as { isLoggedIn: boolean };
+
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      {...mantineHtmlProps}
+      style={{ height: "100vh", margin: 0 }}
+    >
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <ColorSchemeScript />
         <Meta />
         <Links />
       </head>
-      <body>
-        <Outlet />
+      <body style={{ height: "100vh", margin: 0 }}>
+        <MantineProvider>
+          <Outlet context={isLoggedIn} />
+        </MantineProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

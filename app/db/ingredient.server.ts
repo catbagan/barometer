@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { Ingredient } from "~/types/index.type";
 
 const sizeSchema = new mongoose.Schema({
   code: {
@@ -12,11 +13,23 @@ const sizeSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  sizeInMl: {  
+    type: Number,
+    required: true,
+  },
+  sizeInOz: { 
+    type: Number,
+    required: true,
+  },
   regularPrice: {
     type: Number,
     required: true,
   },
   salePrice: {
+    type: Number,
+    required: true,
+  },
+  pricePerOz: { 
     type: Number,
     required: true,
   },
@@ -49,6 +62,11 @@ export const IngredientModel =
         required: true,
       },
       sizes: [sizeSchema],
+      createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true,
+      },
       lastUpdated: {
         type: Date,
         default: Date.now,
@@ -56,7 +74,7 @@ export const IngredientModel =
     })
   );
 
-export const fromIngredientModel = (ingredient: any) => {
+export const fromIngredientModel = (ingredient: any): Ingredient => {
   return {
     id: ingredient._id,
     brand: ingredient.brand,
@@ -66,5 +84,6 @@ export const fromIngredientModel = (ingredient: any) => {
       ...s,
       lastUpdated: s.lastUpdated.toISOString(),
     })),
+    createdBy: ingredient.createdBy.toHexString(),
   };
 };
