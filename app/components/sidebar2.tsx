@@ -1,5 +1,5 @@
 import { useState } from "react";
-import cocktail from "/cocktail.png";
+import cocktail from "~/../../public/cocktail.png";
 import {
   IconLogout,
   IconLogin,
