@@ -49,6 +49,9 @@
     "vite": "^5.1.4",
     "vite-tsconfig-paths": "^4.3.1"
   },
+  "overrides": {
+    "rollup": "4.29.2"
+  },
   "engines": {
     "node": ">=20.0.0"
   }
