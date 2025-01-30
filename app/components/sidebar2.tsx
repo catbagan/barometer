@@ -1,5 +1,5 @@
 import { useState } from "react";
-import cocktail from "~/../../public/cocktail.png";
+import cocktail from "~/../public/cocktail.png"
 import {
   IconLogout,
   IconLogin,
@@ -59,7 +59,7 @@ export function Sidebar2({ isLoggedIn }: SidebarProps) {
       <div className={classes.footer}>
         {isLoggedIn ? (
           <>
-            <a href="#" className={classes.link}>
+            <a href="/profile" className={classes.link}>
               <IconUser className={classes.linkIcon} stroke={1.5} />
               <span>My Account</span>
             </a>

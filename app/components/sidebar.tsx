@@ -7,7 +7,7 @@ import { CategoryFilters } from "./category-filters";
 import { useState, useMemo } from "react";
 import { Tabs } from "./tabs";
 import { Ingredient } from "~/types/index.type";
-import cocktail from "~/../../public/cocktail.png";
+import cocktail from "~/../public/cocktail.png"
 
 interface SidebarProps {
   ingredients: Array<Ingredient>;

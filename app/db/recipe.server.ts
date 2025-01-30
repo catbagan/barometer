@@ -46,8 +46,8 @@ export const fromRecipeModel = (recipe: any): Recipe => {
     name: recipe.name,
     ingredients: recipe.ingredients.map(fromRecipeIngredientModel),
     createdBy: recipe.createdBy.toHexString(),
-    createdAt: recipe.createdAt,
-    updatedAt: recipe.updatedAt,
+    createdAt: new Date(recipe.createdAt),
+    updatedAt: new Date(recipe.updatedAt),
   };
 };
 

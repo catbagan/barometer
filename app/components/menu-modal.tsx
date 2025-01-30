@@ -20,6 +20,7 @@ export interface MenuModalProps {
   recipes: Recipe[];
   menuId: string;
   onSave: (menu: Menu) => Promise<void>;
+  userId: string;
 }
 
 export const MenuModal = ({
@@ -28,6 +29,7 @@ export const MenuModal = ({
   recipes,
   menuId,
   onSave,
+  userId,
 }: MenuModalProps) => {
   const [menuName, setMenuName] = useState("");
   const [menuRecipes, setMenuRecipes] = useState<
@@ -35,7 +37,7 @@ export const MenuModal = ({
   >([
     {
       name: "",
-      id: "",
+      recipe: "",
       price: 0,
     },
   ]);
@@ -49,6 +51,9 @@ export const MenuModal = ({
       id: menuId,
       name: menuName,
       recipes: menuRecipes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: userId,
     };
     await onSave(newMenu);
     onClose();
@@ -82,7 +87,7 @@ export const MenuModal = ({
                 label: recipe.name,
               }))}
               placeholder="Select recipe"
-              value={menuRecipe.id}
+              value={menuRecipe.recipe}
               onChange={(value) => {
                 if (value) {
                   setMenuRecipes(
@@ -117,7 +122,7 @@ export const MenuModal = ({
                 idx === menuRecipes.length - 1
                   ? setMenuRecipes([
                       ...menuRecipes,
-                      { name: "", id: "", price: 0 },
+                      { name: "", recipe: "", price: 0 },
                     ])
                   : setMenuRecipes(
                       menuRecipes.filter((_, index) => index !== idx)

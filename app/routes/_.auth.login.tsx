@@ -94,6 +94,7 @@ export const action: ActionFunction = async ({ request }) => {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
+    console.error(error)
     // Handle authentication errors
     return { error: "Invalid credentials. Please try again." };
   }

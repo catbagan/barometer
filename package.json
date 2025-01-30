@@ -13,6 +13,7 @@
   "dependencies": {
     "@mantine/core": "^7.16.1",
     "@mantine/hooks": "^7.16.1",
+    "@remix-run/netlify": "^1.19.3",
     "@remix-run/node": "^2.15.2",
     "@remix-run/react": "^2.15.2",
     "@remix-run/serve": "^2.15.2",

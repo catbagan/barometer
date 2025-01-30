@@ -1,5 +1,5 @@
 import { LoaderFunction, redirect } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
 import { useState, useMemo, useCallback } from "react";
 import {
   IconChevronDown,
@@ -170,6 +170,7 @@ export const loader: LoaderFunction = async ({
 };
 
 export default function Ingredients() {
+  const { revalidate } = useRevalidator();
   const { ingredients } = useLoaderData<IngredientResponse>();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<string | null>(null);

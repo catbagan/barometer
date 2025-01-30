@@ -60,29 +60,35 @@ export const register = async (
   email: string,
   password: string
 ): Promise<User> => {
+  console.log('here b')
   await connectDB();
 
   // Check if user already exists
+  console.log('here c')
   const existingUser = await UserModel.findOne({ email: email.toLowerCase() });
   if (existingUser) {
     throw new Error("User with this email already exists");
   }
 
+  console.log('here d')
   // Validate password strength
   if (password.length < 8) {
     throw new Error("Password must be at least 8 characters long");
   }
 
   // Hash password
+  console.log('here e')
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Create new user
+  console.log('here f')
   const user = await UserModel.create({
     name,
     email: email.toLowerCase(),
     password: hashedPassword,
   });
 
+  console.log('here g')
   // Return user without sensitive data
   return {
     id: user._id.toHexString(),
@@ -138,10 +144,20 @@ export const comparePasswords = async (
 export const isLoggedIn = async (
   request: Request
 ): Promise<{ isLoggedIn: boolean; userId: string | null }> => {
-  let session = await sessionStorage.getSession(request.headers.get("cookie"));
-  let user = session.get("user");
-  return {
-    isLoggedIn: user != null,
-    userId: user.id,
-  };
+  try {
+    let session = await sessionStorage.getSession(
+      request.headers.get("cookie")
+    );
+    let user = session.get("user");
+    return {
+      isLoggedIn: user != null,
+      userId: user?.id,
+    };
+  } catch (error: any) {
+    console.error("Error checking if user is logged in:", error);
+    return {
+      isLoggedIn: false,
+      userId: null,
+    };
+  }
 };

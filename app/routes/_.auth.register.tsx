@@ -112,43 +112,55 @@ export const checkPassword = (password: string): { error?: string } => {
 };
 
 export const action: ActionFunction = async ({ request }) => {
+  console.log('here 1')
   const form = await request.formData();
   const name = form.get("name");
   const email = form.get("email");
   const password = form.get("password");
   const confirmPassword = form.get("confirmPassword");
+  console.log('here 2')
 
   if (!name || !email || !password || !confirmPassword) {
+    console.log('here 3')
     return { error: "All fields are required" };
   }
   const passwordError = checkPassword(password.toString()).error;
   if (passwordError) {
+    console.log('here 4')
     return { error: passwordError };
   }
 
   const confirmPasswordError = checkPassword(confirmPassword.toString()).error;
   if (confirmPasswordError) {
+    console.log('here 5')
     return { error: confirmPasswordError };
   }
 
   if (password !== confirmPassword) {
+    console.log('here 6')
     return { error: "Passwords do not match" };
   }
 
   try {
+    console.log('here a')
     const user = await register(
       name.toString(),
       email.toString(),
       password.toString()
     );
+    console.log('here 7')
     const session = await sessionStorage.getSession(
       request.headers.get("cookie")
     );
+    console.log('here 8')
     session.set("user", user);
+    console.log('here 9')
     return redirect("/", {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error: any) {
+    console.log('here 10')
+    console.error(error)
     return { error: error.message };
   }
 };

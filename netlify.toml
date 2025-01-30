@@ -1,18 +1,18 @@
 [build]
-  command = "remix build"
+  command = "npm run build"
   functions = "netlify/functions"
-  publish = "public"
+  publish = "build"  # Changed from "public" to "build" since that's where your assets are
 
-[dev]
-  command = "remix watch"
-  port = 3000
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["build/**"]
 
 [[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/server"
+  from = "/assets/*"  # Simplified this path
+  to = "/client/assets/:splat"
   status = 200
 
 [[headers]]
-  for = "/build/*"
+  for = "/assets/*"  # Updated to match your asset path
   [headers.values]
-    "Cache-Control" = "public, max-age=31536000, s-maxage=31536000"
+    "Cache-Control" = "public, max-age=31536000, immutable"

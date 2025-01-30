@@ -32,6 +32,7 @@ import { DANIEL_USER_ID } from "~/shared/const";
 interface MenuResponse {
   menus: Menu[];
   recipes: Recipe[];
+  userId: string;
 }
 
 interface ThProps {
@@ -127,16 +128,17 @@ export const loader: LoaderFunction = async ({
         const menu = doc.toObject();
         return fromMenuModel(menu);
       }),
+      userId: loginResult.userId,
     };
   } catch (error) {
     console.error("Error:", error);
-    return { menus: [], recipes: [] };
+    return { menus: [], recipes: [], userId: "" };
   }
 };
 
 export default function Menus() {
   const { revalidate } = useRevalidator();
-  const { menus, recipes } = useLoaderData<MenuResponse>();
+  const { menus, recipes, userId } = useLoaderData<MenuResponse>();
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [reverseSortDirection, setReverseSortDirection] = useState(false);
@@ -200,6 +202,7 @@ export default function Menus() {
         recipes={recipes}
         menuId={newMenuId}
         onSave={onSaveMenu}
+        userId={userId}
       />
       <ScrollArea m="md">
         <Flex gap="sm">

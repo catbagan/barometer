@@ -1,6 +1,6 @@
 import { LoaderFunction, redirect } from "@remix-run/node";
 import { useDisclosure } from "@mantine/hooks";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRevalidator } from "@remix-run/react";
 import { useState, useMemo, useCallback } from "react";
 import {
   IconChevronDown,
@@ -170,6 +170,7 @@ export const loader: LoaderFunction = async ({
 };
 
 export default function Recipes() {
+  const { revalidate } = useRevalidator();
   const { recipes, ingredients, menus, userId } =
     useLoaderData<RecipeResponse>();
   const [search, setSearch] = useState("");
@@ -220,6 +221,7 @@ export default function Recipes() {
       }
 
       const data = await response.json();
+      revalidate()
     } catch (error) {
       console.error("Error saving recipe:", error);
     }

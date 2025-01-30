@@ -19,6 +19,7 @@ export const loader: LoaderFunction = async ({ request }) => {
   const result = {
     isLoggedIn: (await isLoggedIn(request)).isLoggedIn,
   };
+  console.log('result', result)
   return result;
 };
 

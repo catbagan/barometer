@@ -6,3 +6,6 @@ public/.DS_Store
 /.cache
 /build
 .env
+
+# Local Netlify folder
+.netlify

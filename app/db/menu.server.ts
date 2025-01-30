@@ -47,6 +47,7 @@ export const toMenuRecipeModel = (recipe: MenuRecipe): any => {
       price: recipe.price,
     };
   } catch (error: any) {
+    console.log(error)
     throw new Error(
       `Failed to convert menu recipe ${recipe.recipe}: ${error.message}`
     );
@@ -85,8 +86,9 @@ export const toMenuModel = (menu: Menu): any => {
     return {
       _id: new mongoose.Types.ObjectId(menu.id),
       name: menu.name,
-      recipes: menu.recipes.map(toMenuRecipeModel),
+      recipes: menu.recipes.filter(r => r.recipe !== '').map(toMenuRecipeModel),
       updatedAt: new Date(),
+      createdBy: new mongoose.Types.ObjectId(menu.createdBy),
     };
   } catch (error: any) {
     throw new Error(`Failed to convert menu ${menu.id}: ${error.message}`);

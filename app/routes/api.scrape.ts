@@ -4,6 +4,7 @@ import { json } from "@remix-run/node";
 import { IngredientModel } from "~/db/ingredient.server";
 import { connectDB } from "~/db/db.server";
 import type { Ingredient, Size } from "~/types/index.type";
+import mongoose, { mongo } from "mongoose";
 
 interface ScrapedIngredient {
   code: string;
@@ -231,6 +232,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             brand,
             category: data.category,
             sizes: data.sizes,
+            createdBy: new mongoose.Types.ObjectId('679af24e5fbe614b370eeb3f'),
             lastUpdated: new Date().toISOString(),
           },
         },
