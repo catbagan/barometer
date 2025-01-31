@@ -53,8 +53,8 @@ export interface RecipeIngredientAmount {
   quantity: number;
 }
 export interface RecipeIngredient {
-  ingredientId: string;
   amount: RecipeIngredientAmount;
+  optionIds: string[];
 }
 
 export interface Recipe extends Timestamp, UserOwned {

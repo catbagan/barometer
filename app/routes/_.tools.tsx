@@ -3,6 +3,7 @@ import type { LinksFunction, LoaderFunction } from "@remix-run/node";
 import stylesUrl from "~/styles/_.css?url";
 import { getSession } from "~/services/auth.service";
 import { Session } from "~/types/index.type";
+import { Title } from "@mantine/core";
 
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: stylesUrl },
@@ -19,8 +20,8 @@ export const loader: LoaderFunction = async ({ request }): Promise<Session> => {
 
 export default function Tools() {
   return (
-    <div id="app">
-      <h1>Tools tools tools!!</h1>
-    </div>
+    <>
+      <Title m="md">Tools</Title>
+    </>
   );
 }

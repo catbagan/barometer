@@ -1,7 +1,9 @@
 import {
   Button,
+  Card,
   Flex,
   Modal,
+  MultiSelect,
   NumberInput,
   SegmentedControl,
   Select,
@@ -30,7 +32,7 @@ export interface RecipeModalProps {
 interface IngredientRowProps {
   showAddIcon: boolean;
   addIngredient: () => void;
-  deleteIngredient: (ingredientId: string) => void;
+  deleteIngredient: () => void;
   currentIngredient: RecipeIngredient;
   updateCurrentIngredient: (updated: RecipeIngredient) => void;
   ingredients: Ingredient[];
@@ -44,7 +46,6 @@ const IngredientRow = ({
   updateCurrentIngredient,
   ingredients,
 }: IngredientRowProps) => {
-  // Get available ingredient options
   const ingredientOptions = ingredients.map((ing) => ({
     value: ing.id,
     label: ing.name,
@@ -52,18 +53,11 @@ const IngredientRow = ({
 
   const [isCustomQuantity, setIsCustomQuantity] = useState(false);
 
-  const handleIngredientChange = (ingredientId: string) => {
-    const ingredient = ingredients.find((i) => i.id === ingredientId);
-
-    if (ingredient) {
-      updateCurrentIngredient({
-        ingredientId,
-        amount: {
-          unit: UnitEnum.oz,
-          quantity: 0.75,
-        },
-      });
-    }
+  const handleIngredientOptionsChange = (selectedIds: string[]) => {
+    updateCurrentIngredient({
+      ...currentIngredient,
+      optionIds: selectedIds,
+    });
   };
 
   const unitOptions = Object.values(UnitEnum).map((unit) => ({
@@ -73,97 +67,95 @@ const IngredientRow = ({
 
   return (
     <Flex mb="sm" align="center" gap="sm">
-      <Select
-        style={{ width: "200px" }}
-        placeholder="Ingredient"
+      <MultiSelect
+        style={{ width: "300px" }}
+        placeholder="Select ingredients"
         data={ingredientOptions}
-        value={currentIngredient.ingredientId}
-        onChange={(val) => val && handleIngredientChange(val)}
+        value={currentIngredient.optionIds}
+        onChange={handleIngredientOptionsChange}
         searchable
       />
-      <SegmentedControl
-        style={{ minWidth: "300px" }}
-        data={[
-          { label: "0.75oz", value: "0.75" },
-          { label: "1.5oz", value: "1.5" },
-          { label: "3oz", value: "3" },
-          { label: "custom", value: "custom" },
-        ]}
-        value={
-          currentIngredient.amount.quantity === 0.75
-            ? "0.75"
-            : currentIngredient.amount.quantity === 1.5
-            ? "1.5"
-            : currentIngredient.amount.quantity === 3
-            ? "3"
-            : "custom"
-        }
-        onChange={(value) => {
-          if (value === "custom") {
-            setIsCustomQuantity(true);
-            updateCurrentIngredient({
-              ...currentIngredient,
-              amount: {
-                unit: UnitEnum.oz,
-                quantity: 0.0,
-              },
-            });
-          } else {
-            // Set fixed amount for preset values
-            setIsCustomQuantity(false);
-            updateCurrentIngredient({
-              ...currentIngredient,
-              amount: {
-                unit: UnitEnum.oz,
-                quantity: parseFloat(value),
-              },
-            });
+      <Flex direction={"column"}>
+        <SegmentedControl
+          data={[
+            { label: "0.75oz", value: "0.75" },
+            { label: "1.5oz", value: "1.5" },
+            { label: "3oz", value: "3" },
+            { label: "custom", value: "custom" },
+          ]}
+          value={
+            currentIngredient.amount.quantity === 0.75
+              ? "0.75"
+              : currentIngredient.amount.quantity === 1.5
+              ? "1.5"
+              : currentIngredient.amount.quantity === 3
+              ? "3"
+              : "custom"
           }
-        }}
-      />
-      {/* Show unit and quantity inputs only when custom is selected */}
-      {isCustomQuantity && (
-        <>
-          <Select
-            style={{ width: "100px" }}
-            placeholder="Unit"
-            data={unitOptions}
-            value={currentIngredient.amount.unit}
-            onChange={(val) => {
-              if (val) {
+          onChange={(value) => {
+            if (value === "custom") {
+              setIsCustomQuantity(true);
+              updateCurrentIngredient({
+                ...currentIngredient,
+                amount: {
+                  unit: UnitEnum.oz,
+                  quantity: 0.0,
+                },
+              });
+            } else {
+              setIsCustomQuantity(false);
+              updateCurrentIngredient({
+                ...currentIngredient,
+                amount: {
+                  unit: UnitEnum.oz,
+                  quantity: parseFloat(value),
+                },
+              });
+            }
+          }}
+        />
+        {isCustomQuantity && (
+          <Flex>
+            <Select
+              style={{ width: "100px" }}
+              placeholder="Unit"
+              data={unitOptions}
+              value={currentIngredient.amount.unit}
+              onChange={(val) => {
+                if (val) {
+                  updateCurrentIngredient({
+                    ...currentIngredient,
+                    amount: {
+                      ...currentIngredient.amount,
+                      unit: val as UnitEnum,
+                    },
+                  });
+                }
+              }}
+            />
+            <NumberInput
+              style={{ width: "100px" }}
+              placeholder="Quantity"
+              value={currentIngredient.amount.quantity}
+              onChange={(val) => {
                 updateCurrentIngredient({
                   ...currentIngredient,
                   amount: {
                     ...currentIngredient.amount,
-                    unit: val as UnitEnum,
+                    quantity: typeof val === "number" ? val : 0,
                   },
                 });
-              }
-            }}
-          />
-          <NumberInput
-            style={{ width: "100px" }}
-            placeholder="Quantity"
-            value={currentIngredient.amount.quantity}
-            onChange={(val) => {
-              updateCurrentIngredient({
-                ...currentIngredient,
-                amount: {
-                  ...currentIngredient.amount,
-                  quantity: typeof val === "number" ? val : 0,
-                },
-              });
-            }}
-          />
-        </>
-      )}
+              }}
+            />
+          </Flex>
+        )}
+      </Flex>
       <Button
         variant="light"
         onClick={() => {
-          showAddIcon
-            ? addIngredient()
-            : deleteIngredient(currentIngredient.ingredientId);
+          showAddIcon ? addIngredient() : deleteIngredient();
         }}
+        color={showAddIcon ? "blue" : "red"}
       >
         {showAddIcon ? <IconPlus stroke={1.5} /> : <IconTrash stroke={1.5} />}
       </Button>
@@ -174,7 +166,7 @@ const IngredientRow = ({
 interface MenuRowProps {
   showAddIcon: boolean;
   addMenu: () => void;
-  deleteMenu: (id: string) => void;
+  deleteMenu: () => void;
   currentMenu: Menu;
   updateMenu: (updated: Menu) => void;
   menus: Menu[];
@@ -225,7 +217,8 @@ const MenuRow = ({
       <NumberInput
         style={{ width: "100px" }}
         placeholder="Price"
-        value={recipeInMenu?.price ?? 0}
+        prefix="$"
+        value={recipeInMenu?.price || undefined}
         onChange={(val) => {
           updateMenu({
             ...currentMenu,
@@ -240,8 +233,9 @@ const MenuRow = ({
       <Button
         variant="light"
         onClick={() => {
-          showAddIcon ? addMenu() : deleteMenu(currentMenu.id);
+          showAddIcon ? addMenu() : deleteMenu();
         }}
+        color={showAddIcon ? "blue" : "red"}
       >
         {showAddIcon ? <IconPlus stroke={1.5} /> : <IconTrash stroke={1.5} />}
       </Button>
@@ -262,7 +256,7 @@ export const RecipeModal = ({
     RecipeIngredient[]
   >([
     {
-      ingredientId: "",
+      optionIds: [],
       amount: {
         unit: UnitEnum.oz,
         quantity: 0.75,
@@ -285,7 +279,7 @@ export const RecipeModal = ({
     setRecipeIngredients([
       ...recipeIngredients,
       {
-        ingredientId: "",
+        optionIds: [],
         amount: {
           unit: UnitEnum.oz,
           quantity: 0.75,
@@ -294,44 +288,13 @@ export const RecipeModal = ({
     ]);
   };
 
-  const deleteIngredient = (ingredientId: string) => {
+  const deleteIngredient = (index: number) => {
+    setRecipeIngredients(recipeIngredients.filter((_, idx) => idx !== index));
+  };
+
+  const updateIngredient = (index: number, updated: RecipeIngredient) => {
     setRecipeIngredients(
-      recipeIngredients.filter((ing) => ing.ingredientId !== ingredientId)
-    );
-  };
-
-  const updateIngredient = (
-    index: number,
-    updatedIngredient: RecipeIngredient
-  ) => {
-    setRecipeIngredients(
-      recipeIngredients.map((ing, idx) =>
-        idx === index ? updatedIngredient : ing
-      )
-    );
-  };
-
-  const addMenu = () => {
-    const newMenu: Menu = {
-      id: "",
-      name: "",
-      recipes: [{ recipeId, price: 0 }],
-      createdBy: "",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setMenusToUpdate([...menusToUpdate, newMenu]);
-  };
-
-  const deleteMenu = (menuId: string) => {
-    setMenusToUpdate(menusToUpdate.filter((menu) => menu.id !== menuId));
-  };
-
-  const updateMenu = (updatedMenu: Menu) => {
-    setMenusToUpdate(
-      menusToUpdate.map((menu) =>
-        menu.id === updatedMenu.id ? updatedMenu : menu
-      )
+      recipeIngredients.map((ing, idx) => (idx === index ? updated : ing))
     );
   };
 
@@ -353,47 +316,87 @@ export const RecipeModal = ({
       size="xl"
       opened={opened}
       onClose={onClose}
-      title="Add new recipe"
-      styles={{ title: { fontSize: "24px" } }}
+      title={
+        <Text fw={700} size="xl">
+          Add new recipe
+        </Text>
+      }
       centered
     >
-      <TextInput
-        label="Recipe name"
-        placeholder="Recipe name"
-        required
-        mb="sm"
-        value={recipeName}
-        onChange={(event) => setRecipeName(event.currentTarget.value)}
-      />
-      <Text fw={500} size="sm" mb="xs">
-        Ingredients
-      </Text>
-      {recipeIngredients.map((ingredient, idx) => (
-        <IngredientRow
-          key={idx}
-          showAddIcon={idx === recipeIngredients.length - 1}
-          addIngredient={addIngredient}
-          deleteIngredient={deleteIngredient}
-          currentIngredient={ingredient}
-          updateCurrentIngredient={(updated) => updateIngredient(idx, updated)}
-          ingredients={ingredients}
+      <Card shadow="md" m="md" radius="md">
+        <Text fw={500} size="md">
+          Recipe name
+        </Text>
+        <Text color="gray" size="xs" mb="xs">
+          Make it a good one!
+        </Text>
+        <TextInput
+          placeholder="Recipe name"
+          required
+          value={recipeName}
+          onChange={(event) => setRecipeName(event.currentTarget.value)}
         />
-      ))}
-      <Text fw={500} size="sm" mt="md" mb="xs">
-        Menus
-      </Text>
-      {menusToUpdate.map((menu, idx) => (
-        <MenuRow
-          key={idx}
-          showAddIcon={idx === menusToUpdate.length - 1}
-          addMenu={addMenu}
-          deleteMenu={deleteMenu}
-          currentMenu={menu}
-          updateMenu={updateMenu}
-          menus={menus}
-          recipeId={recipeId}
-        />
-      ))}
+      </Card>
+      <Card shadow="md" m="md" radius="md">
+        <Text fw={500} size="md">
+          Ingredients
+        </Text>
+        <Text color="gray" size="xs" mb="xs">
+          Specify options for the ingredient by selecting multiple ingredients
+          per row
+        </Text>
+        {recipeIngredients.map((ingredient, idx) => (
+          <IngredientRow
+            key={idx}
+            showAddIcon={idx === recipeIngredients.length - 1}
+            addIngredient={addIngredient}
+            deleteIngredient={() => deleteIngredient(idx)}
+            currentIngredient={ingredient}
+            updateCurrentIngredient={(updated) =>
+              updateIngredient(idx, updated)
+            }
+            ingredients={ingredients}
+          />
+        ))}
+      </Card>
+      <Card shadow="md" m="md" radius="md">
+        <Text fw={500} size="md">
+          Menus
+        </Text>
+        <Text color="gray" size="xs" mb="xs">
+          Add the recipe to menus and set the price
+        </Text>
+        {menusToUpdate.map((menu, idx) => (
+          <MenuRow
+            key={idx}
+            showAddIcon={idx === menusToUpdate.length - 1}
+            addMenu={() => {
+              const newMenu: Menu = {
+                id: "",
+                name: "",
+                recipes: [{ recipeId, price: 0 }],
+                createdBy: "",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              };
+              setMenusToUpdate([...menusToUpdate, newMenu]);
+            }}
+            deleteMenu={() => {
+              setMenusToUpdate(menusToUpdate.filter((_, i) => idx !== i));
+            }}
+            currentMenu={menu}
+            updateMenu={(updatedMenu) => {
+              setMenusToUpdate(
+                menusToUpdate.map((m) =>
+                  m.id === updatedMenu.id ? updatedMenu : m
+                )
+              );
+            }}
+            menus={menus}
+            recipeId={recipeId}
+          />
+        ))}
+      </Card>
       <Button mt="xl" onClick={handleSave}>
         Save
       </Button>
