@@ -1,7 +1,7 @@
 import { LoaderFunction, redirect } from "@remix-run/node";
 import { useDisclosure } from "@mantine/hooks";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import {
   IconChevronDown,
   IconChevronUp,
@@ -21,13 +21,11 @@ import {
 } from "@mantine/core";
 import { connectDB } from "~/db/db.server";
 import { fromMenuModel, MenuModel } from "~/db/menu.server";
-import React from "react";
 import { Menu, Recipe } from "~/types/index.type";
 import mongoose from "mongoose";
 import { MenuModal } from "~/components/menu-modal";
 import { fromRecipeModel, RecipeModel } from "~/db/recipe.server";
-import { isLoggedIn } from "~/services/auth.service";
-import { DANIEL_USER_ID } from "~/shared/const";
+import { getSession } from "~/services/auth.service";
 
 interface MenuResponse {
   menus: Menu[];
@@ -42,7 +40,7 @@ interface ThProps {
   onSort: () => void;
 }
 
-const Th = React.memo(({ children, reversed, sorted, onSort }: ThProps) => {
+const Th = memo(({ children, reversed, sorted, onSort }: ThProps) => {
   const Icon = sorted
     ? reversed
       ? IconChevronUp
@@ -63,6 +61,7 @@ const Th = React.memo(({ children, reversed, sorted, onSort }: ThProps) => {
     </Table.Th>
   );
 });
+Th.displayName = "Th";
 
 const filterData = (data: Menu[], search: string) => {
   const query = search.toLowerCase().trim();
@@ -96,28 +95,29 @@ const sortData = (
   });
 };
 
-const MenuRow = React.memo(({ menu }: { menu: Menu }) => (
+const MenuRow = memo(({ menu }: { menu: Menu }) => (
   <Table.Tr>
     <Table.Td>{menu.name}</Table.Td>
     <Table.Td>{menu.recipes.length}</Table.Td>
   </Table.Tr>
 ));
+MenuRow.displayName = "MenuRow";
 
 export const loader: LoaderFunction = async ({
   request,
 }): Promise<MenuResponse> => {
-  const loginResult = await isLoggedIn(request);
-  if (!loginResult.isLoggedIn || loginResult.userId == null) {
+  const session = await getSession(request);
+  if (session == null) {
     throw redirect("/auth/login");
   }
 
   try {
     await connectDB();
     const menus = await MenuModel.find({
-      $or: [{ createdBy: new mongoose.Types.ObjectId(loginResult.userId) }],
+      $or: [{ createdBy: new mongoose.Types.ObjectId(session.userId) }],
     });
     const recipes = await RecipeModel.find({
-      $or: [{ createdBy: new mongoose.Types.ObjectId(loginResult.userId) }],
+      $or: [{ createdBy: new mongoose.Types.ObjectId(session.userId) }],
     });
     return {
       recipes: recipes.map((doc) => {
@@ -128,7 +128,7 @@ export const loader: LoaderFunction = async ({
         const menu = doc.toObject();
         return fromMenuModel(menu);
       }),
-      userId: loginResult.userId,
+      userId: session.userId,
     };
   } catch (error) {
     console.error("Error:", error);
@@ -185,8 +185,6 @@ export default function Menus() {
       if (!response.ok) {
         throw new Error("Failed to save menu");
       }
-
-      const data = await response.json();
       revalidate();
     } catch (error) {
       console.error("Error saving menu:", error);

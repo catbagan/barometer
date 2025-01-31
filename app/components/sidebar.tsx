@@ -1,99 +1,88 @@
-import { LinksFunction } from "@remix-run/node";
-import stylesUrl from "./sidebar.css?url";
-import { useNavigate } from "@remix-run/react";
-import { IngredientList } from "./ingredient-list";
-import { RecipeList } from "./recipe-list";
-import { CategoryFilters } from "./category-filters";
-import { useState, useMemo } from "react";
-import { Tabs } from "./tabs";
-import { Ingredient } from "~/types/index.type";
-import cocktail from "~/../public/cocktail.png"
+import { useState } from "react";
+import cocktail from "~/../public/cocktail.png";
+import {
+  IconLogout,
+  IconLogin,
+  IconUserPlus,
+  IconBottle,
+  IconGlassCocktail,
+  IconBook,
+  IconUser,
+  IconHome,
+  IconTool,
+} from "@tabler/icons-react";
+import { Code, Group } from "@mantine/core";
+import classes from "./sidebar.module.css";
+import { Form, useNavigate } from "@remix-run/react";
 
-interface SidebarProps {
-  ingredients: Array<Ingredient>;
-  recipes: Array<any>;
-  setSelectedIngredient: (id: string) => void;
-  selectedIngredient: string;
-}
-
-export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: stylesUrl },
+const data = [
+  { path: "/", label: "Home", icon: IconHome },
+  { path: "/ingredients", label: "Ingredients", icon: IconBottle },
+  { path: "/recipes", label: "Recipes", icon: IconGlassCocktail },
+  { path: "/menus", label: "Menus", icon: IconBook },
+  { path: "/tools", label: "Tools", icon: IconTool },
+  { path: "/profile", label: "Account", icon: IconUser },
 ];
 
-export function Sidebar({
-  ingredients,
-  recipes,
-  setSelectedIngredient,
-  selectedIngredient,
-}: SidebarProps) {
+interface SidebarProps {
+  isLoggedIn: boolean;
+}
+
+export function Sidebar({ isLoggedIn }: SidebarProps) {
+  const [active, setActive] = useState("Home");
   const navigate = useNavigate();
+  const links = data
+    .filter((l) => (isLoggedIn ? true : l.label !== "Account"))
+    .map((item) => (
+      <a
+        className={classes.link}
+        data-active={item.label === active || undefined}
+        key={item.label}
+        onClick={(event) => {
+          event.preventDefault();
+          setActive(item.label);
+          navigate(item.path);
+        }}
+      >
+        <item.icon className={classes.linkIcon} stroke={1.5} />
+        <span>{item.label}</span>
+      </a>
+    ));
 
-  const [activeTab, setActiveTab] = useState<
-    "ingredients" | "recipes" | "menus"
-  >("ingredients");
-
-  const [selectedCategories, setSelectedCategories] = useState([
-    ...new Set(ingredients.map((i) => i.category.toLowerCase())),
-  ]);
-  const filteredIngredients = useMemo(() => {
-    return ingredients.filter((ingredient) =>
-      selectedCategories.includes(ingredient.category.toLowerCase())
-    );
-  }, [ingredients, selectedCategories]);
-
-  const [selectedRecipeId, setSelectedRecipeId] = useState("");
   return (
-    <div id="sidebar">
-      <div id="sidebar-header">
-        <h1>BarOMeter</h1>
-        <img src={cocktail} alt="Cocktail icon" />
+    <nav className={classes.navbar}>
+      <div className={classes.navbarMain}>
+        <Group className={classes.header} justify="space-between">
+          <img src={cocktail} width={32} height={32} alt="Cocktail icon" />
+          <Code fw={700}>v0.0.1</Code>
+        </Group>
+        {links}
       </div>
 
-      <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
-      {activeTab === "ingredients" && (
-        <>
-          <CategoryFilters
-            categories={[
-              ...new Set(ingredients.map((i) => i.category.toLowerCase())),
-            ]}
-            selectedCategories={selectedCategories}
-            onToggleCategory={(category) =>
-              setSelectedCategories((prev) =>
-                prev.includes(category)
-                  ? prev.filter((cat) => cat !== category)
-                  : [...prev, category]
-              )
-            }
-          />
-          <IngredientList
-            ingredients={filteredIngredients}
-            selectedIngredient={selectedIngredient}
-            setSelectedIngredient={setSelectedIngredient}
-          />
-        </>
-      )}
+      <div className={classes.footer}>
+        {isLoggedIn ? (
+          <>
+            <Form method="post" action="/auth/logout">
+              <button type="submit" className={classes.logoutButton}>
+                <IconLogout className={classes.linkIcon} stroke={1.5} />
+                <span>Logout</span>
+              </button>
+            </Form>
+          </>
+        ) : (
+          <>
+            <a href="/auth/login" className={classes.link}>
+              <IconLogin className={classes.linkIcon} stroke={1.5} />
+              <span>Sign In</span>
+            </a>
 
-      {activeTab === "recipes" && (
-        <>
-          <div id="recipe-controls">
-            <button
-              id="add-recipe-button"
-              onClick={() => {
-                setSelectedRecipeId("");
-                navigate("/recipe/add");
-              }}
-            >
-              Add recipe
-            </button>
-          </div>
-          <RecipeList
-            recipes={recipes}
-            setSelectedRecipeId={setSelectedRecipeId}
-            selectedRecipeId={selectedRecipeId}
-          />
-        </>
-      )}
-      {/* {activeTab === "menus" && <MenuList />} */}
-    </div>
+            <a href="/auth/register" className={classes.link}>
+              <IconUserPlus className={classes.linkIcon} stroke={1.5} />
+              <span>Register</span>
+            </a>
+          </>
+        )}
+      </div>
+    </nav>
   );
 }

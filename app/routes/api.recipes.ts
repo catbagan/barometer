@@ -1,8 +1,9 @@
 import { ActionFunction } from "@remix-run/node";
-import { MenuModel, toMenuRecipeModel } from "~/db/menu.server";
-import { RecipeModel, toRecipeModel } from "~/db/recipe.server";
+import { MenuModel, toMenuDocument } from "~/db/menu.server";
+import { RecipeModel, toRecipeDocument } from "~/db/recipe.server";
 import { Menu, Recipe } from "~/types/index.type";
 import mongoose from "mongoose";
+import { connectDB } from "~/db/db.server";
 
 export const action: ActionFunction = async ({ request }) => {
   if (request.method === "POST") {
@@ -18,31 +19,79 @@ export const action: ActionFunction = async ({ request }) => {
         throw new Error("Invalid input: recipe and menus array required");
       }
 
-      // Create the new recipe
-      const newRecipe = await RecipeModel.create(toRecipeModel(recipe));
+      // Validate recipe structure
+      if (!recipe.name || !Array.isArray(recipe.ingredients)) {
+        throw new Error("Invalid recipe structure");
+      }
 
+      // Validate recipe ingredients
+      for (const ingredient of recipe.ingredients) {
+        if (!ingredient.ingredientId || !ingredient.amount) {
+          throw new Error("Invalid ingredient structure");
+        }
+        if (
+          typeof ingredient.amount.quantity !== "number" ||
+          !ingredient.amount.unit
+        ) {
+          throw new Error("Invalid ingredient amount");
+        }
+      }
+
+      await connectDB();
+
+      // Create the new recipe
+      const recipeDoc = toRecipeDocument({
+        ...recipe,
+        createdBy: userId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const newRecipe = await RecipeModel.create(recipeDoc);
       const updatedMenuIds = [];
 
-      // Update each menu one at a time
+      // Update each menu
       for (const menu of menus) {
-        const recipeInMenu = menu.recipes.find((r) => r.recipe === recipe.id);
+        // Skip empty or invalid menus
+        if (!menu.name) continue;
+
+        const recipeInMenu = menu.recipes.find((r) => r.recipeId === recipe.id);
         if (!recipeInMenu) {
           console.warn(`Recipe not found in menu ${menu.id}, skipping...`);
           continue;
         }
 
-        // Update this specific menu
-        await MenuModel.updateOne(
-          { _id: new mongoose.Types.ObjectId(menu.id) },
-          {
-            $push: {
-              recipes: toMenuRecipeModel(recipeInMenu),
-            },
-            $set: { updatedAt: new Date() },
+        try {
+          if (menu.id) {
+            // Update existing menu
+            await MenuModel.updateOne(
+              { _id: new mongoose.Types.ObjectId(menu.id) },
+              {
+                $push: {
+                  recipes: {
+                    recipeId: recipe.id,
+                    price: recipeInMenu.price,
+                  },
+                },
+                $set: { updatedAt: new Date() },
+              }
+            );
+          } else {
+            // Create new menu
+            const menuDoc = toMenuDocument({
+              ...menu,
+              createdBy: userId,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            });
+            await MenuModel.create(menuDoc);
           }
-        );
 
-        updatedMenuIds.push(menu.id);
+          updatedMenuIds.push(menu.id);
+        } catch (menuError) {
+          console.error(`Error updating menu ${menu.id}:`, menuError);
+          // Continue with other menus even if one fails
+        }
       }
 
       return new Response(
@@ -58,20 +107,23 @@ export const action: ActionFunction = async ({ request }) => {
           },
         }
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error in action handler:", error);
-      return new Response(
-        JSON.stringify({
-          error: error.message,
-          details: error.stack,
-        }),
-        {
-          status: 500,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      if (error instanceof Error) {
+        return new Response(
+          JSON.stringify({
+            error: error.message,
+            details: error.stack,
+          }),
+          {
+            status: 500,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+      }
+      throw new Error("Unexpected error");
     }
   }
 

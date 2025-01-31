@@ -1,4 +1,4 @@
-import { redirect, useLoaderData } from "@remix-run/react";
+import { redirect } from "@remix-run/react";
 import type { LinksFunction, LoaderFunction } from "@remix-run/node";
 import stylesUrl from "~/styles/_.css?url";
 import { getSession } from "~/services/auth.service";
@@ -17,12 +17,10 @@ export const loader: LoaderFunction = async ({ request }): Promise<Session> => {
   return session;
 };
 
-export default function Profile() {
-  const data = useLoaderData() as Session;
+export default function Tools() {
   return (
     <div id="app">
-      <h1>My Account</h1>
-      <h3>My user id: {data.userId}</h3>
+      <h1>Tools tools tools!!</h1>
     </div>
   );
 }

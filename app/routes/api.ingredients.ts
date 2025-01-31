@@ -1,24 +1,36 @@
 import { ActionFunction } from "@remix-run/node";
-import { MenuModel, toMenuModel } from "~/db/menu.server";
-import { Menu } from "~/types/index.type";
+import mongoose from "mongoose";
+import { createIngredient } from "~/db/ingredient.server";
+import { CustomIngredient } from "~/types/index.type";
 
 export const action: ActionFunction = async ({ request }) => {
   if (request.method === "POST") {
-    const menu: Menu = await request.json();
-
+    const data = await request.json();
     try {
-      // Validate input
-      if (!menu) {
-        throw new Error("Invalid input: menu required ");
+      if (!data.name || !data.createdBy) {
+        throw new Error("Invalid input: name and createdBy are required");
       }
 
-      // Create the new menu
-      const newMenu = await MenuModel.create(toMenuModel(menu));
+      const ingredient: CustomIngredient = {
+        id: new mongoose.Types.ObjectId().toHexString(),
+        name: data.name,
+        createdBy: data.createdBy,
+        sources: [
+          {
+            name: "CUSTOM",
+            sizes: [],
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      const newIngredient = await createIngredient(ingredient);
 
       return new Response(
         JSON.stringify({
           success: true,
-          menu: newMenu,
+          ingredient: newIngredient,
         }),
         {
           status: 200,
@@ -46,7 +58,6 @@ export const action: ActionFunction = async ({ request }) => {
       throw new Error("unexpected error");
     }
   }
-
   return new Response(JSON.stringify({ error: "Method not allowed" }), {
     status: 405,
     headers: {

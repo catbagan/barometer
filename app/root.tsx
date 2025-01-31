@@ -13,18 +13,16 @@ import {
   mantineHtmlProps,
 } from "@mantine/core";
 import { LoaderFunction } from "@remix-run/node";
-import { isLoggedIn } from "./services/auth.service";
+import { getSession } from "./services/auth.service";
+import { Session } from "./types/index.type";
 
 export const loader: LoaderFunction = async ({ request }) => {
-  const result = {
-    isLoggedIn: (await isLoggedIn(request)).isLoggedIn,
-  };
-  console.log('result', result)
-  return result;
+  const session = await getSession(request);
+  return session;
 };
 
 export default function App() {
-  const { isLoggedIn } = useLoaderData() as { isLoggedIn: boolean };
+  const maybeSession = useLoaderData() as Session | null;
 
   return (
     <html
@@ -41,7 +39,7 @@ export default function App() {
       </head>
       <body style={{ height: "100vh", margin: 0 }}>
         <MantineProvider>
-          <Outlet context={isLoggedIn} />
+          <Outlet context={{ isLoggedIn: maybeSession != null }} />
         </MantineProvider>
         <ScrollRestoration />
         <Scripts />

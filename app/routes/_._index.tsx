@@ -26,7 +26,7 @@ export default function Index() {
   ];
 
   return (
-    <Container size="lg" my={40}>
+    <Container size="lg" my="md">
       <Title mb="xl">Welcome to BarOMeter</Title>
       <Text color="dimmed" size="lg" mb={50}>
         Your complete toolkit for intelligent bar management and cocktail creation
@@ -34,7 +34,7 @@ export default function Index() {
 
       <Grid>
         {features.map((feature, index) => (
-          <Grid.Col key={index} xs={12} sm={6}>
+          <Grid.Col key={index}>
             <Paper shadow="md" p="xl" radius="md" withBorder>
               <Group>
                 <feature.icon size={32} stroke={1.5} />

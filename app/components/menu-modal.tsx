@@ -65,7 +65,7 @@ export const MenuModal = ({
       overlayProps={{ blur: 2 }}
       opened={opened}
       onClose={handleClose}
-      title="Add new recipe"
+      title="Add new menu"
       styles={{ title: { fontSize: "24px" } }}
       centered
     >
@@ -116,7 +116,7 @@ export const MenuModal = ({
                 );
               }}
             />
-            <a
+            <Button
               style={{ cursor: "pointer" }}
               onClick={() => {
                 idx === menuRecipes.length - 1
@@ -134,7 +134,7 @@ export const MenuModal = ({
               ) : (
                 <IconTrash stroke={1.5} />
               )}
-            </a>
+            </Button>
           </Flex>
         );
       })}

@@ -1,96 +1,89 @@
 import mongoose from "mongoose";
 import { Menu, MenuRecipe } from "~/types/index.type";
 
+export interface MenuDocument {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  recipes: MenuRecipeDocument[];
+  createdBy: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface MenuRecipeDocument {
+  recipeId: string;
+  price: number;
+}
+
+const menuRecipeSchema = new mongoose.Schema({
+  recipeId: { type: String, required: true },
+  price: { type: Number, required: true },
+});
+
+const menuSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  recipes: { type: [menuRecipeSchema], required: true },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  createdAt: { type: Date, required: true, default: Date.now },
+  updatedAt: { type: Date, required: true, default: Date.now },
+});
+
 export const MenuModel =
-  mongoose.models.Menu ||
-  mongoose.model(
-    "Menu",
-    new mongoose.Schema({
-      name: { type: String, required: true },
-      recipes: [
-        {
-          price: { type: Number, required: true },
-        },
-      ],
-      createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-      },
-      createdAt: { type: Date, default: Date.now },
-      updatedAt: { type: Date, default: Date.now },
-    })
-  );
+  mongoose.models.Menu || mongoose.model<MenuDocument>("Menu", menuSchema);
 
-export const fromMenuRecipeModel = (recipe: any): MenuRecipe => {
-  return {
-    recipe: recipe._id.toHexString(),
-    price: recipe.price,
-  };
-};
+const toMenuRecipeDocument = (recipe: MenuRecipe): MenuRecipeDocument => ({
+  recipeId: recipe.recipeId,
+  price: recipe.price,
+});
 
-export const fromMenuModel = (menu: any): Menu => {
-  return {
-    id: menu._id.toHexString(),
-    name: menu.name,
-    recipes: menu.recipes.map((item: any) => fromMenuRecipeModel(item)),
-    createdAt: menu.createdAt,
-    updatedAt: menu.updatedAt,
-    createdBy: menu.createdBy.toHexString(),
-  };
-};
+export const toMenuDocument = (menu: Menu): Partial<MenuDocument> => ({
+  name: menu.name,
+  recipes: menu.recipes.map(toMenuRecipeDocument),
+  createdBy: new mongoose.Types.ObjectId(menu.createdBy),
+  createdAt: new Date(menu.createdAt),
+  updatedAt: new Date(menu.updatedAt),
+});
 
-export const toMenuRecipeModel = (recipe: MenuRecipe): any => {
-  try {
-    return {
-      _id: new mongoose.Types.ObjectId(recipe.recipe),
-      price: recipe.price,
-    };
-  } catch (error: any) {
-    console.log(error)
-    throw new Error(
-      `Failed to convert menu recipe ${recipe.recipe}: ${error.message}`
-    );
-  }
-};
+const fromMenuRecipeDocument = (doc: MenuRecipeDocument): MenuRecipe => ({
+  recipeId: doc.recipeId,
+  price: doc.price,
+});
 
-export const toMenuModel = (menu: Menu): any => {
-  if (!menu || typeof menu !== "object") {
-    throw new Error("Invalid menu object provided");
-  }
+export const fromMenuDocument = (doc: MenuDocument): Menu => ({
+  id: doc._id.toHexString(),
+  name: doc.name,
+  recipes: doc.recipes.map(fromMenuRecipeDocument),
+  createdBy: doc.createdBy.toHexString(),
+  createdAt: doc.createdAt.toISOString(),
+  updatedAt: doc.updatedAt.toISOString(),
+});
 
-  if (!menu.id || typeof menu.id !== "string") {
-    throw new Error("Menu must have a valid id string");
-  }
-
-  if (!menu.name || typeof menu.name !== "string") {
-    throw new Error("Menu must have a valid name string");
-  }
-
-  if (!Array.isArray(menu.recipes)) {
-    throw new Error("Menu must have a recipes array");
-  }
-
-  // Validate recipe prices
-  menu.recipes.forEach((recipe, index) => {
-    if (
-      typeof recipe.price !== "number" ||
-      isNaN(recipe.price) ||
-      recipe.price < 0
-    ) {
-      throw new Error(`Invalid price for recipe at index ${index}`);
-    }
+// DB operations
+export const getMenusForUser = async (userId: string): Promise<Menu[]> => {
+  const menus = await MenuModel.find({
+    createdBy: new mongoose.Types.ObjectId(userId),
   });
 
-  try {
-    return {
-      _id: new mongoose.Types.ObjectId(menu.id),
-      name: menu.name,
-      recipes: menu.recipes.filter(r => r.recipe !== '').map(toMenuRecipeModel),
-      updatedAt: new Date(),
-      createdBy: new mongoose.Types.ObjectId(menu.createdBy),
-    };
-  } catch (error: any) {
-    throw new Error(`Failed to convert menu ${menu.id}: ${error.message}`);
+  return menus.map((doc) => fromMenuDocument(doc.toObject()));
+};
+
+export const createMenu = async (menu: Menu): Promise<Menu> => {
+  const doc = await MenuModel.create(toMenuDocument(menu));
+  return fromMenuDocument(doc.toObject());
+};
+
+export const updateMenu = async (id: string, menu: Menu): Promise<Menu> => {
+  const doc = await MenuModel.findByIdAndUpdate(id, toMenuDocument(menu), {
+    new: true,
+  });
+
+  if (!doc) {
+    throw new Error(`Menu with id ${id} not found`);
   }
+
+  return fromMenuDocument(doc.toObject());
 };

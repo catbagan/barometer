@@ -1,7 +1,7 @@
 import { LoaderFunction, redirect } from "@remix-run/node";
 import { useDisclosure } from "@mantine/hooks";
 import { useLoaderData, useRevalidator } from "@remix-run/react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, ReactNode, memo } from "react";
 import {
   IconChevronDown,
   IconChevronUp,
@@ -9,28 +9,29 @@ import {
   IconSelector,
 } from "@tabler/icons-react";
 import {
+  Box,
   Button,
-  Modal,
   Center,
   Flex,
   Group,
-  ScrollArea,
+  List,
+  Modal,
+  Stack,
   Table,
   Text,
   TextInput,
+  Title,
   Tooltip,
   UnstyledButton,
 } from "@mantine/core";
 import { connectDB } from "~/db/db.server";
-import { fromRecipeModel, RecipeModel } from "~/db/recipe.server";
-import React from "react";
-import { Ingredient, Menu, Recipe } from "~/types/index.type";
+import { fromRecipeDocument, RecipeModel } from "~/db/recipe.server";
+import { Ingredient, Menu, Recipe, UnitEnum } from "~/types/index.type";
 import { RecipeModal } from "~/components/recipe-modal";
-import { fromIngredientModel, IngredientModel } from "~/db/ingredient.server";
-import { fromMenuModel, MenuModel } from "~/db/menu.server";
-import mongoose, { mongo } from "mongoose";
-import { isLoggedIn } from "~/services/auth.service";
-import { DANIEL_USER_ID } from "~/shared/const";
+import { getIngredientsForUser } from "~/db/ingredient.server";
+import { fromMenuDocument, MenuModel } from "~/db/menu.server";
+import mongoose from "mongoose";
+import { getSession } from "~/services/auth.service";
 
 interface RecipeResponse {
   recipes: Recipe[];
@@ -40,13 +41,13 @@ interface RecipeResponse {
 }
 
 interface ThProps {
-  children: React.ReactNode;
+  children: ReactNode;
   reversed: boolean;
   sorted: boolean;
   onSort: () => void;
 }
 
-const Th = React.memo(({ children, reversed, sorted, onSort }: ThProps) => {
+const Th = memo(({ children, reversed, sorted, onSort }: ThProps) => {
   const Icon = sorted
     ? reversed
       ? IconChevronUp
@@ -67,16 +68,13 @@ const Th = React.memo(({ children, reversed, sorted, onSort }: ThProps) => {
     </Table.Th>
   );
 });
+Th.displayName = "Th";
 
 const filterData = (data: Recipe[], search: string) => {
   const query = search.toLowerCase().trim();
   if (!query) return data;
 
-  return data.filter(
-    (item) =>
-      item.name.toLowerCase().includes(query) ||
-      item.ingredients.some((ing) => ing.category.toLowerCase().includes(query))
-  );
+  return data.filter((item) => item.name.toLowerCase().includes(query));
 };
 
 const sortData = (
@@ -97,71 +95,98 @@ const sortData = (
     switch (sortBy) {
       case "name":
         return a.name.localeCompare(b.name);
-      case "categories":
-        return a.ingredients
-          .map((i) => i.category)
-          .join(",")
-          .localeCompare(b.ingredients.map((i) => i.category).join(","));
       default:
         return 0;
     }
   });
 };
 
-const RecipeRow = React.memo(({ recipe }: { recipe: Recipe }) => (
-  <Tooltip
-    multiline
-    style={{ width: 500 }}
-    label={JSON.stringify(recipe)}
-    key={recipe.id}
-  >
-    <Table.Tr>
-      <Table.Td>{recipe.name}</Table.Td>
-      <Table.Td>
-        {recipe.ingredients
-          .map((i) => `${i.category} (${i.amount})`)
-          .join(", ")}
-      </Table.Td>
-    </Table.Tr>
-  </Tooltip>
-));
+const formatAmount = (quantity: number, unit: UnitEnum) => {
+  switch (quantity) {
+    case 0.75:
+      return "0.75oz";
+    case 1.5:
+      return "1.5oz";
+    case 3:
+      return "3oz";
+    default:
+      return `${quantity}${unit}`;
+  }
+};
+
+const RecipeRow = memo(
+  ({
+    recipe,
+    ingredients,
+    onRowClick,
+  }: {
+    recipe: Recipe;
+    ingredients: Ingredient[];
+    onRowClick: (recipe: Recipe) => void;
+  }) => (
+    <Tooltip
+      multiline
+      style={{ width: 500 }}
+      label={JSON.stringify(recipe)}
+      key={recipe.id}
+    >
+      <Table.Tr
+        style={{ cursor: "pointer" }}
+        onClick={() => onRowClick(recipe)}
+      >
+        <Table.Td>{recipe.name}</Table.Td>
+        <Table.Td>
+          {recipe.ingredients
+            .map((i) => {
+              const ingredient = ingredients.find(
+                (ing) => ing.id === i.ingredientId
+              );
+              return ingredient
+                ? `${ingredient.name} (${formatAmount(
+                    i.amount.quantity,
+                    i.amount.unit
+                  )})`
+                : "";
+            })
+            .filter(Boolean)
+            .join(", ")}
+        </Table.Td>
+      </Table.Tr>
+    </Tooltip>
+  )
+);
+RecipeRow.displayName = "RecipeRow";
 
 export const loader: LoaderFunction = async ({
   request,
 }): Promise<RecipeResponse> => {
-  const loginResult = await isLoggedIn(request);
-  if (!loginResult.isLoggedIn || loginResult.userId == null) {
+  const session = await getSession(request);
+  if (session == null) {
     throw redirect("/auth/login");
   }
 
   try {
     await connectDB();
     const recipes = await RecipeModel.find({
-      $or: [{ createdBy: new mongoose.Types.ObjectId(loginResult.userId) }],
+      $or: [{ createdBy: new mongoose.Types.ObjectId(session.userId) }],
     });
-    const ingredients = await IngredientModel.find({
-      $or: [
-        { createdBy: new mongoose.Types.ObjectId(loginResult.userId) },
-        { createdBy: new mongoose.Types.ObjectId(DANIEL_USER_ID) },
-      ],
-    });
+
+    await connectDB();
+    const ingredients = await getIngredientsForUser(session.userId);
     const menus = await MenuModel.find({
-      $or: [{ createdBy: new mongoose.Types.ObjectId(loginResult.userId) }],
+      $or: [{ createdBy: new mongoose.Types.ObjectId(session.userId) }],
     });
     return {
       recipes: recipes.map((doc) => {
         const recipe = doc.toObject();
-        return fromRecipeModel(recipe);
+        return fromRecipeDocument(recipe);
       }),
-      ingredients: ingredients.map((doc) => {
-        const ingredient = doc.toObject();
-        return fromIngredientModel(ingredient);
-      }),
+      ingredients,
       menus: menus.map((doc) => {
         const menu = doc.toObject();
-        return fromMenuModel(menu);
+        return fromMenuDocument(menu);
       }),
-      userId: loginResult.userId,
+      userId: session.userId,
     };
   } catch (error) {
     console.error("Error:", error);
@@ -219,12 +244,19 @@ export default function Recipes() {
       if (!response.ok) {
         throw new Error("Failed to save recipe");
       }
-
-      const data = await response.json();
-      revalidate()
+      revalidate();
     } catch (error) {
       console.error("Error saving recipe:", error);
     }
+  };
+
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [detailsOpened, { open: openDetails, close: closeDetails }] =
+    useDisclosure(false);
+
+  const handleRowClick = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    openDetails();
   };
 
   return (
@@ -234,16 +266,24 @@ export default function Recipes() {
         opened={opened}
         onClose={close}
         ingredients={ingredients}
-        recipes={recipes}
         menus={menus}
         recipeId={newRecipeId}
         onSave={onSaveRecipe}
       />
-      <ScrollArea m="md">
+      {selectedRecipe && (
+        <RecipeDetails
+          opened={detailsOpened}
+          onClose={closeDetails}
+          recipe={selectedRecipe}
+          ingredients={ingredients}
+        />
+      )}
+      <Title m="md">Recipes</Title>
+      <Box m="md">
         <Flex gap="sm">
           <TextInput
             flex="auto"
-            placeholder="Search by recipe name or ingredient category"
+            placeholder="Search by recipe name"
             mb="md"
             leftSection={<IconSearch size={16} stroke={1.5} />}
             value={search}
@@ -259,28 +299,39 @@ export default function Recipes() {
             Add new recipe
           </Button>
         </Flex>
+        <Text size="sm" color="gray" mb="md">
+          Click on a row to view recipe details.
+        </Text>
+      </Box>
+      <Table.ScrollContainer h={"80vh"} minWidth={100}>
         <Table horizontalSpacing="md" verticalSpacing="xs" miw={700}>
           <Table.Thead>
             <Table.Tr>
-              {[
-                { key: "name", label: "Recipe Name" },
-                { key: "categories", label: "Ingredients" },
-              ].map(({ key, label }) => (
-                <Th
-                  key={key}
-                  sorted={sortBy === key}
-                  reversed={reverseSortDirection}
-                  onSort={() => setSorting(key)}
-                >
-                  {label}
-                </Th>
-              ))}
+              <Th
+                sorted={sortBy === "name"}
+                reversed={reverseSortDirection}
+                onSort={() => setSorting("name")}
+              >
+                Recipe Name
+              </Th>
+              <Th
+                sorted={sortBy === "ingredients"}
+                reversed={reverseSortDirection}
+                onSort={() => setSorting("ingredients")}
+              >
+                Ingredients
+              </Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
             {sortedData.length > 0 ? (
               sortedData.map((recipe) => (
-                <RecipeRow key={recipe.id} recipe={recipe} />
+                <RecipeRow
+                  key={recipe.id}
+                  recipe={recipe}
+                  ingredients={ingredients}
+                  onRowClick={handleRowClick}
+                />
               ))
             ) : (
               <Table.Tr>
@@ -293,7 +344,62 @@ export default function Recipes() {
             )}
           </Table.Tbody>
         </Table>
-      </ScrollArea>
+      </Table.ScrollContainer>
     </>
   );
 }
+
+interface RecipeDetailsProps {
+  opened: boolean;
+  onClose: () => void;
+  recipe: Recipe;
+  ingredients: Ingredient[];
+}
+
+export const RecipeDetails = ({
+  opened,
+  onClose,
+  recipe,
+  ingredients,
+}: RecipeDetailsProps) => {
+  return (
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title="Recipe Details"
+      size="md"
+      centered
+    >
+      <Stack>
+        <Title order={2}>{recipe.name}</Title>
+
+        <Group>
+          <Text fw={500}>Ingredients:</Text>
+          <List spacing="xs">
+            {recipe.ingredients.map((ing, index) => {
+              const ingredient = ingredients.find(
+                (i) => i.id === ing.ingredientId
+              );
+              if (!ingredient) return null;
+
+              return (
+                <List.Item key={index}>
+                  <Group>
+                    <Text>{ingredient.name}</Text>
+                    <Text c="dimmed">
+                      {formatAmount(ing.amount.quantity, ing.amount.unit)}
+                    </Text>
+                  </Group>
+                </List.Item>
+              );
+            })}
+          </List>
+        </Group>
+
+        <Text size="sm" c="dimmed" mt="md">
+          Created: {new Date(recipe.createdAt).toLocaleDateString()}
+        </Text>
+      </Stack>
+    </Modal>
+  );
+};

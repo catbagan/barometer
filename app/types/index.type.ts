@@ -4,42 +4,74 @@ export interface User {
   name: string;
 }
 
-export interface Size {
-  code: string;
-  size: string;
-  sizeInMl: number;
-  sizeInOz: number;
-  regularPrice: number;
-  salePrice: number;
-  pricePerOz: number;
-  savings: number;
-  proof: number;
-  lastUpdated: string;
+export interface Session {
+  userId: string;
+}
+
+interface Timestamp {
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UserOwned {
+  createdBy: string;
+}
+
+export interface ProductSource {
+  name: string;
+  sizes: ProductSize[];
+}
+
+export enum UnitEnum {
+  ml = "ml",
+  oz = "oz",
+  each = "ea",
+}
+
+export interface ProductSize {
+  unit: UnitEnum;
+  quantity: number;
+  price: number;
+  discount: number;
+  unitPrice: number;
 }
 
 export interface Ingredient {
   id: string;
-  brand: string;
-  category: string;
-  lastUpdated: string;
-  sizes: Size[];
-  createdBy: string; // User ID
+  name: string;
+  sources: ProductSource[];
+
+  // TODO - maybe group separately
+  proof?: number; // e.g. 80
+  alcoholType?: string; // e.g. vodka, gin
 }
 
-export interface IngredientResponse {
-  ingredients: Ingredient[];
+export interface CustomIngredient extends Ingredient, UserOwned, Timestamp {}
+
+export interface RecipeIngredientAmount {
+  unit: UnitEnum;
+  quantity: number;
+}
+export interface RecipeIngredient {
+  ingredientId: string;
+  amount: RecipeIngredientAmount;
 }
 
-export interface IngredientBrand {
+export interface Recipe extends Timestamp, UserOwned {
   id: string;
   name: string;
+  ingredients: RecipeIngredient[];
 }
 
-export interface RecipeIngredient {
+export interface MenuRecipe {
+  recipeId: string;
+  price: number;
+}
+
+export interface Menu extends Timestamp, UserOwned {
   id: string;
-  category: string;
-  amount: string;
-  brands: IngredientBrand[];
+  name: string;
+  recipes: MenuRecipe[];
 }
 
 export interface BrandCost {
@@ -57,38 +89,15 @@ export interface IngredientCost {
   brandOptions: BrandCost[];
 }
 
-export interface Recipe {
-  id: string;
-  name: string;
-  ingredients: Array<RecipeIngredient>;
-  createdBy: string; // User ID
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface RecipeCost {
   totalCost: number;
   menuPrice: number;
   profit: number;
-  profitMargin: number; // as percentage
+  profitMargin: number;
   breakdown: Array<{
     brandName: string;
     cost: number;
     sizeUsed: string;
     unitPrice: number;
   }>;
-}
-
-export interface MenuRecipe {
-  recipe: string; // Recipe ID
-  price: number;
-}
-
-export interface Menu {
-  id: string;
-  name: string;
-  recipes: Array<MenuRecipe>;
-  createdBy: string; // User ID
-  createdAt: string;
-  updatedAt: string;
 }

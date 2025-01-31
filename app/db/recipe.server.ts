@@ -1,100 +1,143 @@
-import mongoose, { mongo } from "mongoose";
-import { Recipe, RecipeIngredient } from "~/types/index.type";
+import mongoose from "mongoose";
+import {
+  Recipe,
+  RecipeIngredient,
+  RecipeIngredientAmount,
+  UnitEnum,
+} from "~/types/index.type";
+
+export interface RecipeDocument {
+  _id: mongoose.Types.ObjectId;
+  name: string;
+  ingredients: RecipeIngredientDocument[];
+  createdBy: mongoose.Types.ObjectId;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RecipeIngredientDocument {
+  ingredientId: string;
+  amount: RecipeIngredientAmountDocument;
+}
+
+export interface RecipeIngredientAmountDocument {
+  unit: UnitEnum;
+  quantity: number;
+}
+
+export interface RecipeIngredientOptionDocument {
+  name: string;
+  unit: UnitEnum;
+  quantity: number;
+  price: number;
+}
+
+const recipeIngredientAmountSchema = new mongoose.Schema({
+  unit: { type: String, enum: Object.values(UnitEnum), required: true },
+  quantity: { type: Number, required: true },
+});
+
+const recipeIngredientOptionSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  unit: { type: String, enum: Object.values(UnitEnum), required: true },
+  quantity: { type: Number, required: true },
+  price: { type: Number, required: true },
+});
+
+const recipeIngredientSchema = new mongoose.Schema({
+  ingredientId: { type: String, required: true },
+  amount: { type: recipeIngredientAmountSchema, required: true },
+  options: { type: [recipeIngredientOptionSchema], required: true },
+});
+
+const recipeSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  ingredients: { type: [recipeIngredientSchema], required: true },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  createdAt: { type: Date, required: true, default: Date.now },
+  updatedAt: { type: Date, required: true, default: Date.now },
+});
 
 export const RecipeModel =
   mongoose.models.Recipe ||
-  mongoose.model(
-    "Recipe",
-    new mongoose.Schema({
-      name: { type: String, required: true },
-      ingredients: [
-        {
-          category: { type: String, required: true },
-          amount: { type: String, required: true }, // e.g., "1oz"
-          brands: [
-            {
-              type: mongoose.Schema.Types.ObjectId,
-              ref: "Ingredient",
-            },
-          ],
-        },
-      ],
-      createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
-      },
-      createdAt: { type: Date, default: Date.now },
-      updatedAt: { type: Date, default: Date.now },
-    })
+  mongoose.model<RecipeDocument>("Recipe", recipeSchema);
+
+const toRecipeIngredientAmountDocument = (
+  amount: RecipeIngredientAmount
+): RecipeIngredientAmountDocument => ({
+  unit: amount.unit,
+  quantity: amount.quantity,
+});
+
+const toRecipeIngredientDocument = (
+  ingredient: RecipeIngredient
+): RecipeIngredientDocument => ({
+  ingredientId: ingredient.ingredientId,
+  amount: toRecipeIngredientAmountDocument(ingredient.amount),
+});
+
+export const toRecipeDocument = (recipe: Recipe): Partial<RecipeDocument> => ({
+  name: recipe.name,
+  ingredients: recipe.ingredients.map(toRecipeIngredientDocument),
+  createdBy: new mongoose.Types.ObjectId(recipe.createdBy),
+  createdAt: new Date(recipe.createdAt),
+  updatedAt: new Date(recipe.updatedAt),
+});
+
+const fromRecipeIngredientAmountDocument = (
+  doc: RecipeIngredientAmountDocument
+): RecipeIngredientAmount => ({
+  unit: doc.unit,
+  quantity: doc.quantity,
+});
+
+const fromRecipeIngredientDocument = (
+  doc: RecipeIngredientDocument
+): RecipeIngredient => ({
+  ingredientId: doc.ingredientId,
+  amount: fromRecipeIngredientAmountDocument(doc.amount),
+});
+
+export const fromRecipeDocument = (doc: RecipeDocument): Recipe => ({
+  id: doc._id.toHexString(),
+  name: doc.name,
+  ingredients: doc.ingredients.map(fromRecipeIngredientDocument),
+  createdBy: doc.createdBy.toHexString(),
+  createdAt: doc.createdAt.toISOString(),
+  updatedAt: doc.updatedAt.toISOString(),
+});
+
+// DB operations
+export const getRecipesForUser = async (userId: string): Promise<Recipe[]> => {
+  const recipes = await RecipeModel.find({
+    createdBy: new mongoose.Types.ObjectId(userId),
+  });
+
+  return recipes.map((doc) => fromRecipeDocument(doc.toObject()));
+};
+
+export const createRecipe = async (recipe: Recipe): Promise<Recipe> => {
+  const doc = await RecipeModel.create(toRecipeDocument(recipe));
+  return fromRecipeDocument(doc.toObject());
+};
+
+export const updateRecipe = async (
+  id: string,
+  recipe: Recipe
+): Promise<Recipe> => {
+  const doc = await RecipeModel.findByIdAndUpdate(
+    id,
+    toRecipeDocument(recipe),
+    { new: true }
   );
 
-export const fromRecipeIngredientModel = (
-  ingredient: any
-): RecipeIngredient => {
-  return {
-    id: ingredient._id.toHexString(),
-    category: ingredient.category,
-    amount: ingredient.amount,
-    brands: ingredient.brands,
-  };
-};
-
-export const fromRecipeModel = (recipe: any): Recipe => {
-  return {
-    id: recipe._id.toHexString(),
-    name: recipe.name,
-    ingredients: recipe.ingredients.map(fromRecipeIngredientModel),
-    createdBy: recipe.createdBy.toHexString(),
-    createdAt: new Date(recipe.createdAt),
-    updatedAt: new Date(recipe.updatedAt),
-  };
-};
-
-const toRecipeIngredientModel = (ingredient: RecipeIngredient): any => {
-  try {
-    return {
-      _id: new mongoose.Types.ObjectId(ingredient.id),
-      category: ingredient.category,
-      amount: ingredient.amount,
-      brands: ingredient.brands.map(
-        (brand) => new mongoose.Types.ObjectId(brand.id)
-      ),
-    };
-  } catch (error: any) {
-    throw new Error(
-      `Failed to convert ingredient ${ingredient.id}: ${error.message}`
-    );
-  }
-};
-
-export const toRecipeModel = (recipe: Recipe): any => {
-  if (!recipe || typeof recipe !== "object") {
-    throw new Error("Invalid recipe object provided");
+  if (!doc) {
+    throw new Error(`Recipe with id ${id} not found`);
   }
 
-  if (!recipe.id || typeof recipe.id !== "string") {
-    throw new Error("Recipe must have a valid id string");
-  }
-
-  if (!recipe.name || typeof recipe.name !== "string") {
-    throw new Error("Recipe must have a valid name string");
-  }
-
-  if (!Array.isArray(recipe.ingredients)) {
-    throw new Error("Recipe must have an ingredients array");
-  }
-
-  try {
-    return {
-      _id: new mongoose.Types.ObjectId(recipe.id),
-      name: recipe.name,
-      ingredients: recipe.ingredients.map(toRecipeIngredientModel),
-      createdBy: new mongoose.Types.ObjectId(recipe.createdBy),
-      createdAt: recipe.createdAt ?? new Date(),
-      updatedAt: recipe.updatedAt ?? new Date(),
-    };
-  } catch (error: any) {
-    throw new Error(`Failed to convert recipe ${recipe.id}: ${error.message}`);
-  }
+  return fromRecipeDocument(doc.toObject());
 };

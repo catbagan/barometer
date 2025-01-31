@@ -15,8 +15,6 @@ import {
   Container,
   Button,
   Text,
-  Box,
-  Group,
   Alert,
 } from "@mantine/core";
 import { IconX } from "@tabler/icons-react";
@@ -28,7 +26,7 @@ export default function Login() {
     <Container size={420} my={40}>
       <Title>Welcome to Barometer</Title>
       <Text size="sm" mt={5}>
-        Don't have an account yet?{" "}
+        {"Don't have an account yet? "}
         <Link
           to="/auth/register"
           style={{ color: "inherit", textDecoration: "underline" }}
@@ -94,7 +92,7 @@ export const action: ActionFunction = async ({ request }) => {
       headers: { "Set-Cookie": await sessionStorage.commitSession(session) },
     });
   } catch (error) {
-    console.error(error)
+    console.error(error);
     // Handle authentication errors
     return { error: "Invalid credentials. Please try again." };
   }

@@ -1,172 +1,26 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunction } from "@remix-run/node";
 import * as cheerio from "cheerio";
-import { json } from "@remix-run/node";
-import { IngredientModel } from "~/db/ingredient.server";
 import { connectDB } from "~/db/db.server";
-import type { Ingredient, Size } from "~/types/index.type";
-import mongoose, { mongo } from "mongoose";
+import mongoose from "mongoose";
+import { Ingredient, ProductSize, UnitEnum } from "~/types/index.type";
+import {
+  IngredientDocument,
+  ProductSourceDocument,
+  ProductSizeDocument,
+  IngredientModel,
+} from "~/db/ingredient.server";
 
-interface ScrapedIngredient {
-  code: string;
-  brand: string;
+interface ScrapedEntity {
+  name: string;
   size: string;
-  sizeInMl: number;
-  sizeInOz: number;
   regularPrice: number;
   salePrice: number;
-  pricePerOz: number;
   savings: number;
   proof: number;
   category: string;
-  lastUpdated: string;
 }
 
-const parseSizeToMl = (sizeStr: string): number => {
-  if (!sizeStr) return 0;
-
-  const normalized = sizeStr.toString().toLowerCase().trim();
-  if (!normalized) return 0;
-
-  const standaloneUnits: { [key: string]: number } = {
-    liter: 1000,
-    liters: 1000,
-    l: 1000,
-    ml: 1,
-    oz: 29.5735,
-    ounce: 29.5735,
-    ounces: 29.5735,
-  };
-
-  if (standaloneUnits.hasOwnProperty(normalized)) {
-    return standaloneUnits[normalized];
-  }
-
-  const quantityMatch = normalized.match(
-    /^(\d+)\/(\d+)(ml|l|liter|liters|oz|ounce|ounces)$/
-  );
-
-  if (quantityMatch) {
-    const [, quantity, size, unit] = quantityMatch;
-    const numericQuantity = parseInt(quantity, 10);
-    const numericSize = parseInt(size, 10);
-
-    if (isNaN(numericQuantity) || isNaN(numericSize)) return 0;
-
-    let sizeInMl: number;
-    switch (unit) {
-      case "ml":
-        sizeInMl = numericSize;
-        break;
-      case "l":
-      case "liter":
-      case "liters":
-        sizeInMl = numericSize * 1000;
-        break;
-      case "oz":
-      case "ounce":
-      case "ounces":
-        sizeInMl = numericSize * 29.5735;
-        break;
-      default:
-        return 0;
-    }
-
-    return numericQuantity * sizeInMl;
-  }
-
-  const match = normalized.match(
-    /^([\d.]+)\s*(ml|l|liter|liters|oz|ounce|ounces)?$/
-  );
-
-  if (!match) return 0;
-
-  const [, value, unit = "ml"] = match;
-  const numericValue = parseFloat(value);
-
-  if (isNaN(numericValue)) return 0;
-
-  switch (unit) {
-    case "":
-    case "ml":
-      return numericValue;
-    case "l":
-    case "liter":
-    case "liters":
-      return numericValue * 1000;
-    case "oz":
-    case "ounce":
-    case "ounces":
-      return numericValue * 29.5735;
-    default:
-      return 0;
-  }
-};
-
-const convertMlToOz = (ml: number): number => ml / 29.5735;
-
-const calculatePricing = (size: string, price: number) => {
-  const sizeInMl = parseSizeToMl(size);
-  const sizeInOz = convertMlToOz(sizeInMl);
-
-  if (sizeInOz === 0 || !price) {
-    return {
-      pricePerOz: 0,
-      sizeInMl: 0,
-      sizeInOz: 0,
-    };
-  }
-
-  return {
-    pricePerOz: price / sizeInOz,
-    sizeInMl,
-    sizeInOz,
-  };
-};
-
-const scrapePage = async (url: string): Promise<Array<ScrapedIngredient>> => {
-  const response = await fetch(url);
-  const html = await response.text();
-  const $ = cheerio.load(html);
-  const ingredients: ScrapedIngredient[] = [];
-  const category = url.split("/").pop() || "";
-
-  $("tr").each((_, row) => {
-    const code = $(row).find("td:first-child").text().trim();
-    if (!code || code === "Code" || code.length !== 6) return;
-
-    const size = $(row).find("td:nth-child(3)").text().trim();
-    const salePrice = parseFloat($(row).find("td:nth-child(5)").text().trim());
-
-    // Calculate normalized sizes and pricing
-    const pricing = calculatePricing(size, salePrice);
-
-    const ingredient: ScrapedIngredient = {
-      code,
-      brand: $(row).find("td:nth-child(2)").text().trim(),
-      size,
-      sizeInMl: pricing.sizeInMl,
-      sizeInOz: pricing.sizeInOz,
-      regularPrice: parseFloat($(row).find("td:nth-child(4)").text().trim()),
-      salePrice,
-      pricePerOz: pricing.pricePerOz,
-      savings: parseFloat($(row).find("td:nth-child(6)").text().trim()),
-      proof: parseFloat($(row).find("td:nth-child(7)").text().trim()),
-      category,
-      lastUpdated: new Date().toISOString(),
-    };
-
-    if (
-      ingredient.code &&
-      ingredient.brand &&
-      !isNaN(ingredient.regularPrice)
-    ) {
-      ingredients.push(ingredient);
-    }
-  });
-  return ingredients;
-};
-
-export async function loader({ request }: LoaderFunctionArgs) {
+export const loader: LoaderFunction = async () => {
   const urlsToScrape = [
     "https://802spirits.com/price_guide/brandy",
     "https://802spirits.com/price_guide/cocktails",
@@ -180,60 +34,73 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   try {
     await connectDB();
-    const ingredients = (
-      await Promise.all(urlsToScrape.map(scrapePage))
-    ).flat();
+    const entities = (await Promise.all(urlsToScrape.map(scrapePage))).flat();
 
-    // Group ingredients by normalized brand name
-    const brandMap: Record<
-      string,
-      {
-        category: string;
-        sizes: Size[];
-      }
-    > = {};
+    // Group entities by name with proper type inference
+    const ingredientsByName = entities.reduce<Record<string, Ingredient>>(
+      (acc, e) => {
+        const size = parseSize(e.size);
+        if (size == null) {
+          return acc;
+        }
+        if (e.name.endsWith(e.size)) {
+          e.name = e.name.replace(e.size, "").trim();
+        }
 
-    ingredients.forEach((ingredient) => {
-      // Normalize brand name
-      let normalizedName = ingredient.brand.trim();
-      if (normalizedName.endsWith(ingredient.size)) {
-        normalizedName = normalizedName.replace(ingredient.size, "").trim();
-      }
+        // Create or get the ingredient
+        if (!acc[e.name]) {
+          acc[e.name] = {
+            id: new mongoose.Types.ObjectId().toHexString(),
+            name: e.name,
+            sources: [],
+            proof: e.proof,
+            alcoholType: e.category,
+          };
+        }
 
-      // Initialize brand entry if it doesn't exist
-      if (!brandMap[normalizedName]) {
-        brandMap[normalizedName] = {
-          category: ingredient.category,
-          sizes: [],
-        };
-      }
+        // Find or create the source
+        let source = acc[e.name].sources.find((s) => s.name === "802 Spirits");
+        if (!source) {
+          source = {
+            name: "802 Spirits",
+            sizes: [],
+          };
+          acc[e.name].sources.push(source);
+        }
 
-      // Add size variant with normalized values
-      brandMap[normalizedName].sizes.push({
-        code: ingredient.code,
-        size: ingredient.size,
-        sizeInMl: ingredient.sizeInMl,
-        sizeInOz: ingredient.sizeInOz,
-        regularPrice: ingredient.regularPrice,
-        salePrice: ingredient.salePrice,
-        pricePerOz: ingredient.pricePerOz,
-        savings: ingredient.savings,
-        proof: ingredient.proof,
-        lastUpdated: ingredient.lastUpdated,
-      });
-    });
+        // Add size with pricing
+        size.price = e.salePrice;
+        size.discount = e.savings;
+        size.unitPrice = e.salePrice / size.quantity;
+        source.sizes.push(size);
 
-    // Prepare bulk write operations
-    const operations = Object.entries(brandMap).map(([brand, data]) => ({
+        return acc;
+      },
+      {}
+    );
+
+    const ingredients = Object.values(ingredientsByName);
+    const operations = ingredients.map((ingredient) => ({
       updateOne: {
-        filter: { brand },
+        filter: { name: ingredient.name } as Partial<IngredientDocument>,
         update: {
           $set: {
-            brand,
-            category: data.category,
-            sizes: data.sizes,
-            createdBy: new mongoose.Types.ObjectId('679af24e5fbe614b370eeb3f'),
-            lastUpdated: new Date().toISOString(),
+            proof: ingredient.proof,
+            alcoholType: ingredient.alcoholType,
+            sources: ingredient.sources.map(
+              (source): ProductSourceDocument => ({
+                name: source.name,
+                sizes: source.sizes.map(
+                  (size): ProductSizeDocument => ({
+                    unit: size.unit,
+                    quantity: size.quantity,
+                    price: size.price,
+                    discount: size.discount,
+                    unitPrice: size.unitPrice,
+                  })
+                ),
+              })
+            ),
           },
         },
         upsert: true,
@@ -241,27 +108,153 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }));
 
     const result = await IngredientModel.bulkWrite(operations);
-    return json({
+    return {
       success: true,
-      message: "Ingredients updated successfully",
-      stats: {
-        total: ingredients.length,
-        updated: result.modifiedCount,
-        new: result.upsertedCount,
-      },
-      ingredients: ingredients.length,
-    });
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      upsertedCount: result.upsertedCount,
+    };
   } catch (error) {
-    console.error("Error:", error);
-    return json(
-      {
-        success: false,
-        error: "Failed to process data",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      {
-        status: 500,
-      }
-    );
+    console.error("Error updating ingredients:", error);
+    throw error;
   }
-}
+};
+
+const scrapePage = async (url: string): Promise<Array<ScrapedEntity>> => {
+  const response = await fetch(url);
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const entities: ScrapedEntity[] = [];
+  const category = url.split("/").pop() || "";
+
+  $("tr").each((_, row) => {
+    const entity: ScrapedEntity = {
+      name: $(row).find("td:nth-child(2)").text().trim(),
+      size: $(row).find("td:nth-child(3)").text().trim(),
+      regularPrice: parseFloat($(row).find("td:nth-child(4)").text().trim()),
+      salePrice: parseFloat($(row).find("td:nth-child(5)").text().trim()),
+      savings: parseFloat($(row).find("td:nth-child(6)").text().trim()),
+      proof: parseFloat($(row).find("td:nth-child(7)").text().trim()),
+      category,
+    };
+
+    if (
+      entity.name &&
+      entity.size &&
+      entity.category &&
+      !isNaN(entity.regularPrice)
+    ) {
+      entities.push(entity);
+    }
+  });
+  return entities;
+};
+
+const parseSize = (sizeStr: string): ProductSize | null => {
+  if (!sizeStr) return null;
+  const normalized = sizeStr.toString().toLowerCase().trim();
+  if (!normalized) return null;
+
+  const standaloneUnits: {
+    [key: string]: { unit: UnitEnum; multiplier: number };
+  } = {
+    liter: { unit: UnitEnum.ml, multiplier: 1000 },
+    liters: { unit: UnitEnum.ml, multiplier: 1000 },
+    l: { unit: UnitEnum.ml, multiplier: 1000 },
+    ml: { unit: UnitEnum.ml, multiplier: 1 },
+    oz: { unit: UnitEnum.ml, multiplier: 29.5735 },
+    ounce: { unit: UnitEnum.ml, multiplier: 29.5735 },
+    ounces: { unit: UnitEnum.ml, multiplier: 29.5735 },
+  };
+
+  if (standaloneUnits[normalized]) {
+    const { unit, multiplier } = standaloneUnits[normalized];
+    return {
+      unit,
+      quantity: multiplier,
+      price: 0,
+      discount: 0,
+      unitPrice: 0,
+    };
+  }
+
+  const quantityMatch = normalized.match(
+    /^(\d+)\/(\d+)(ml|l|liter|liters|oz|ounce|ounces)$/
+  );
+  if (quantityMatch) {
+    const [, quantity, size, unit] = quantityMatch;
+    const numericQuantity = parseInt(quantity, 10);
+    const numericSize = parseInt(size, 10);
+    if (isNaN(numericQuantity) || isNaN(numericSize)) return null;
+
+    let multiplier: number;
+    switch (unit) {
+      case "ml":
+        multiplier = 1;
+        break;
+      case "l":
+      case "liter":
+      case "liters":
+        multiplier = 1000;
+        break;
+      case "oz":
+      case "ounce":
+      case "ounces":
+        multiplier = 29.5735;
+        break;
+      default:
+        return null;
+    }
+
+    return {
+      unit: UnitEnum.ml,
+      quantity: numericQuantity * numericSize * multiplier,
+      price: 0,
+      discount: 0,
+      unitPrice: 0,
+    };
+  }
+
+  const match = normalized.match(
+    /^([\d.]+)\s*(ml|l|liter|liters|oz|ounce|ounces)?$/
+  );
+  if (!match) return null;
+
+  const [, value, unit = "ml"] = match;
+  const numericValue = parseFloat(value);
+  if (isNaN(numericValue)) return null;
+
+  switch (unit) {
+    case "":
+    case "ml":
+      return {
+        unit: UnitEnum.ml,
+        quantity: numericValue,
+        price: 0,
+        discount: 0,
+        unitPrice: 0,
+      };
+    case "l":
+    case "liter":
+    case "liters":
+      return {
+        unit: UnitEnum.ml,
+        quantity: numericValue * 1000,
+        price: 0,
+        discount: 0,
+        unitPrice: 0,
+      };
+    case "oz":
+    case "ounce":
+    case "ounces":
+      return {
+        unit: UnitEnum.ml,
+        quantity: numericValue * 29.5735,
+        price: 0,
+        discount: 0,
+        unitPrice: 0,
+      };
+    default:
+      return null;
+  }
+};
