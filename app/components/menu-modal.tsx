@@ -2,17 +2,14 @@ import {
   Button,
   Flex,
   Modal,
+  NumberInput,
   Select,
   Text,
   TextInput,
 } from "@mantine/core";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
-import {
-  Menu,
-  MenuRecipe,
-  Recipe,
-} from "~/types/index.type";
+import { Menu, MenuRecipe, Recipe } from "~/types/index.type";
 
 export interface MenuModalProps {
   opened: boolean;
@@ -32,17 +29,16 @@ export const MenuModal = ({
   userId,
 }: MenuModalProps) => {
   const [menuName, setMenuName] = useState("");
-  const [menuRecipes, setMenuRecipes] = useState<
-    (MenuRecipe & { name: string })[]
-  >([
+  const [menuRecipes, setMenuRecipes] = useState<MenuRecipe[]>([
     {
-      name: "",
-      recipe: "",
+      recipeId: "",
       price: 0,
     },
   ]);
 
   const handleClose = () => {
+    setMenuName("");
+    setMenuRecipes([{ recipeId: "", price: 0 }]);
     onClose();
   };
 
@@ -50,19 +46,42 @@ export const MenuModal = ({
     const newMenu: Menu = {
       id: menuId,
       name: menuName,
-      recipes: menuRecipes,
+      recipes: menuRecipes.filter((recipe) => recipe.recipeId !== ""),
+      createdBy: userId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: userId,
     };
     await onSave(newMenu);
-    onClose();
+    handleClose();
+  };
+
+  const addRecipe = () => {
+    setMenuRecipes([...menuRecipes, { recipeId: "", price: 0 }]);
+  };
+
+  const removeRecipe = (index: number) => {
+    setMenuRecipes(menuRecipes.filter((_, idx) => idx !== index));
+  };
+
+  const updateRecipe = (index: number, recipeId: string) => {
+    setMenuRecipes(
+      menuRecipes.map((recipe, idx) =>
+        idx === index ? { ...recipe, recipeId } : recipe
+      )
+    );
+  };
+
+  const updatePrice = (index: number, price: number) => {
+    setMenuRecipes(
+      menuRecipes.map((recipe, idx) =>
+        idx === index ? { ...recipe, price } : recipe
+      )
+    );
   };
 
   return (
     <Modal
       size="lg"
-      overlayProps={{ blur: 2 }}
       opened={opened}
       onClose={handleClose}
       title="Add new menu"
@@ -73,72 +92,62 @@ export const MenuModal = ({
         label="Menu name"
         placeholder="Menu name"
         required
-        mb="sm"
+        mb="md"
         value={menuName}
         onChange={(event) => setMenuName(event.currentTarget.value)}
       />
-      <Text size="sm">Recipes</Text>
-      {menuRecipes.map((menuRecipe, idx) => {
-        return (
-          <Flex key={idx} gap="sm" align="center" mb="sm">
-            <Select
-              data={recipes.map((recipe) => ({
+
+      <Text fw={500} size="sm" mb="xs">
+        Recipes
+      </Text>
+
+      {menuRecipes.map((menuRecipe, idx) => (
+        <Flex key={idx} gap="sm" align="center" mb="sm">
+          <Select
+            style={{ flex: 2 }}
+            placeholder="Select recipe"
+            data={recipes
+              .filter(
+                (recipe) =>
+                  !menuRecipes.some(
+                    (mr) =>
+                      mr.recipeId === recipe.id &&
+                      menuRecipes.indexOf(mr) !== idx
+                  )
+              )
+              .map((recipe) => ({
                 value: recipe.id,
                 label: recipe.name,
               }))}
-              placeholder="Select recipe"
-              value={menuRecipe.recipe}
-              onChange={(value) => {
-                if (value) {
-                  setMenuRecipes(
-                    menuRecipes.map((recipe, index) =>
-                      index === idx ? { ...recipe, id: value } : recipe
-                    )
-                  );
-                }
-              }}
-            />
+            value={menuRecipe.recipeId}
+            onChange={(value) => value && updateRecipe(idx, value)}
+          />
+          <NumberInput
+            style={{ flex: 1 }}
+            placeholder="Price"
+            min={0}
+            value={menuRecipe.price}
+            onChange={(val) =>
+              updatePrice(idx, typeof val === "number" ? val : 0)
+            }
+          />
+          <Button
+            variant="light"
+            color={idx === menuRecipes.length - 1 ? "blue" : "red"}
+            onClick={() => {
+              idx === menuRecipes.length - 1 ? addRecipe() : removeRecipe(idx);
+            }}
+          >
+            {idx === menuRecipes.length - 1 ? (
+              <IconPlus stroke={1.5} />
+            ) : (
+              <IconTrash stroke={1.5} />
+            )}
+          </Button>
+        </Flex>
+      ))}
 
-            <TextInput
-              placeholder="Price"
-              type="number"
-              value={menuRecipe.price !== 0 ? menuRecipe.price : ""}
-              onChange={(event) => {
-                setMenuRecipes(
-                  menuRecipes.map((recipe, index) =>
-                    index === idx
-                      ? {
-                          ...recipe,
-                          price: parseFloat(event.currentTarget.value),
-                        }
-                      : recipe
-                  )
-                );
-              }}
-            />
-            <Button
-              style={{ cursor: "pointer" }}
-              onClick={() => {
-                idx === menuRecipes.length - 1
-                  ? setMenuRecipes([
-                      ...menuRecipes,
-                      { name: "", recipe: "", price: 0 },
-                    ])
-                  : setMenuRecipes(
-                      menuRecipes.filter((_, index) => index !== idx)
-                    );
-              }}
-            >
-              {idx === menuRecipes.length - 1 ? (
-                <IconPlus stroke={1.5} />
-              ) : (
-                <IconTrash stroke={1.5} />
-              )}
-            </Button>
-          </Flex>
-        );
-      })}
-      <Button mt="md" onClick={handleSave}>
+      <Button mt="xl" onClick={handleSave}>
         Save
       </Button>
     </Modal>

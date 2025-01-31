@@ -34,8 +34,8 @@ export function Sidebar({ isLoggedIn }: SidebarProps) {
   const links = data
     .filter((l) => (isLoggedIn ? true : l.label !== "Account"))
     .map((item) => (
-      <a
-        className={classes.link}
+      <button
+        className={classes.buttonLink}
         data-active={item.label === active || undefined}
         key={item.label}
         onClick={(event) => {
@@ -46,7 +46,7 @@ export function Sidebar({ isLoggedIn }: SidebarProps) {
       >
         <item.icon className={classes.linkIcon} stroke={1.5} />
         <span>{item.label}</span>
-      </a>
+      </button>
     ));
 
   return (
@@ -63,7 +63,7 @@ export function Sidebar({ isLoggedIn }: SidebarProps) {
         {isLoggedIn ? (
           <>
             <Form method="post" action="/auth/logout">
-              <button type="submit" className={classes.logoutButton}>
+              <button type="submit" className={classes.buttonLink}>
                 <IconLogout className={classes.linkIcon} stroke={1.5} />
                 <span>Logout</span>
               </button>

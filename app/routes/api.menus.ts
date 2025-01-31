@@ -1,5 +1,5 @@
 import { ActionFunction } from "@remix-run/node";
-import { MenuModel, toMenuModel } from "~/db/menu.server";
+import { MenuModel, toMenuDocument } from "~/db/menu.server";
 import { Menu } from "~/types/index.type";
 
 export const action: ActionFunction = async ({ request }) => {
@@ -13,7 +13,7 @@ export const action: ActionFunction = async ({ request }) => {
       }
 
       // Create the new menu
-      const newMenu = await MenuModel.create(toMenuModel(menu));
+      const newMenu = await MenuModel.create(toMenuDocument(menu));
 
       return new Response(
         JSON.stringify({
